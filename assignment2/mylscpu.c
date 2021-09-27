@@ -1,1292 +1,959 @@
 #include <stdio.h>
+#include <time.h>
 #include <stdlib.h>
-#include <fcntl.h>
 #include <unistd.h>
-#include <dirent.h>
 #include <string.h>
-#include <inttypes.h>
-#include <stdbool.h>
+#include <dirent.h>
 #include <ctype.h>
+#include <sys/stat.h>
+#include <pwd.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/sysmacros.h>
+#include <signal.h>
+#include <utmp.h>
 #include <sys/ioctl.h>
+#include <termios.h>
+#include <ncurses.h>
+#include <curses.h>
+#include <stdbool.h>
+#include <math.h>
 #include <limits.h>
 
-#define SHORT 100
-#define MID 1000
-#define LONG 3000
+#define MAX 1024
 
-//출력정보
-char architecture[SHORT];
-char op_mode[SHORT];
-char byte_order[SHORT];
-char address_size[SHORT];
-int cpu;
-char online_cpu[SHORT];
-int thread_per_core;
-int core_per_socket;
-int socket;
-int NUMA_node;
-char vendor_id[SHORT];
-int cpu_family;
-char model[SHORT];
-char model_name[SHORT];
-int stepping;
-char mhz[SHORT];
-char max_mhz[SHORT];
-char min_mhz[SHORT];
-char bogomips[SHORT];
-char virtualization[SHORT];
-char L1d[SHORT];
-char L1i[SHORT];
-char L2[SHORT];
-char L3[SHORT];
-char NUMA_nodes[SHORT][SHORT];
-char itlb_multihit[SHORT];
-char l1tf[MID];
-char mds[MID];
-char meltdown[MID];
-char spec_store_bypass[MID];
-char spectre_v1[MID];
-char spectre_v2[MID];
-char srbds[MID];
-char tsx_async_abort[MID];
-char flags[LONG];
+struct tm *t;
 
-typedef struct cache {
-	char one_size[30];
-	char all_size[30];
-	char ways[30];
-	char type[30];
-	char level[30];
-} cache;
+//헤더 정보들
+int tasks, run, slp, stop, zombie;
+double us, sy, ni, id, wa, hi, si, st;
+double memtotal, memfree, memused, membuff_cache;
+double swaptotal, swapfree, swapused, swapavail_mem;
 
-cache L1d_C, L1i_C, L2_C, L3_C; //C옵션을 추가할 경우
 
-bool op_64, op_32, op_16;
-int core; //cpu 코어 개수
-int siblings; //thread per core를 구하기 위한 값
+//옵션 변수
+int start_row = 0, start_col = 0;
+int begin[MAX] = {0, 8, 17, 21, 25, 33, 40, 47, 48, 53, 59, 69};
+int option; //정렬 옵션
+int uptime_line; //uptime_line 표시 여부
+int delay; //refresh 초단위
+int option_c; //명령 인자 표시/ 비표시
+char string[MAX];
+int option_i; //유휴 프로세스 표시하지 않는 옵션
+int print_cnt; //print 실행 횟수
+int print_max; //print 최대 실행 수
 
-int get_value(const char* str) { //string으로부터 정수값 얻기
-	int ret = 0;
-	for(int i = 0; i < strlen(str); i++) {
-		if(isdigit(str[i]))
-			ret = ret * 10 + (str[i] - '0');
+int print_row; //result배열에 저장할 행 번
+
+int special_pid; //특정 pid만 출력하는 경우 pid 개수 
+int pids[MAX]; //출력 pid 넣는 함수
+
+int option_b; //나열모드 옵션
+
+int special_user; //특정 user만 출력하는 경우 user의 수
+char users[MAX]; //출력 user 넣는 함수
+char blank[MAX];
+char blank2[MAX];
+int kill_pid; //signal을 보낼 pid
+//cpu읽은 정보
+int current_cpu[9];
+int before_cpu[9];
+
+struct winsize win;
+
+
+typedef struct {
+	unsigned long PID;
+	char USER[MAX];
+	char PR[3];
+	char NI;
+	long long VIRT;
+	long long RES;
+	long long SHR;
+	char S;
+	double CPU;
+	double MEM;
+	long long TIME;
+	char COMMAND[MAX];
+} proc;
+
+const char *proc_path = "/proc";
+proc procs[MAX];
+
+char result[MAX][MAX];
+
+void print_1();
+void print_2();
+void get_data();
+void sort_by_cpu();
+void sort_by_time();
+int get_ch();
+void sort_by_mem();
+
+long long get_value(const char* str) { //string으로부터 정수값을 얻는 함수
+	long long ret = 0;
+	for(int i = 0; i < MAX; i++) {
+		if(isdigit(str[i])) { //숫자일 경우 10을 곱하고 더한다.
+			ret = ret*10 + ((long long)str[i] - '0');
+		}
 	}
 
 	return ret;
 }
 
-void delete_blank(char *str) {
-	char tmp[LONG];
-	memset(tmp, 0, LONG);
-
-	int i = 0;
-	while(str[i] == ' ') i++;
-	strcpy(tmp, str + i);
-	strcpy(str, tmp);
-}
-
-void delete_n(char *str) {
-	if(str[strlen(str)-1] == '\n') str[strlen(str)-1] = '\0';
-}
-
-int start_point(char* str) { //공백은 건너뛰어주는 함
-	int ret = 0;
-	while(true) {
-		if(str[ret] == ':') break;
-		ret++;
+void handler(int signo) { //SIGALRM 핸들러 함수
+	if(print_max == print_cnt) {
+		endwin();
+		exit(0);
 	}
-	while(str[ret] == ' ') ret++;
-	return ret+1;
+	print_cnt++;
+	memset(result, 0, sizeof(result));
+	memset(procs, 0, sizeof(procs));
+	print_row = 0;
+	erase();
+	get_data();
+	if(option == 'P')
+		sort_by_cpu();
+	else if(option == 'T')
+		sort_by_time();
+	else if(option == 'M')
+		sort_by_mem();
+	if(!option_b) {
+		print_1();
+		refresh();
+	}
+	else {
+		print_2();
+	}
+	alarm(delay);
 }
 
-void get_cpuinfo() { //proc/cpuinfo에서 정보를 얻는 함수
-	char *path = "/proc/cpuinfo";
-	char parse_tmp[10000]; //읽어올 정보
-	char parse[MID][LONG]; //파싱정보 저장
-	memset(parse_tmp, 0, 10000);
-	memset(parse, 0, sizeof(parse));
+int get_delay(const char* s) {
+	int ret = 0;
+	for(int i =0; i < strlen(s); i++) {
+		if(isdigit(s[i])) {
+			ret = ret * 10 + (s[i] - '0');
+		}
+	}
+	return ret;
+}
 
-	int fd;//file descriptor
-	if(access(path, F_OK)) return;
-	if((fd = open(path, O_RDONLY)) < 0) {
-		fprintf(stderr, "%s file open error\n", path);
+void swap(proc *a, proc *b) {
+	proc tmp;
+	memcpy(&tmp, a, sizeof(proc));
+	memcpy(a, b, sizeof(proc));
+	memcpy(b, &tmp, sizeof(proc));
+}
+
+double round(double a) { //소수 첫째자리에서 반올림하는 함수
+	int tmp = a * 10;
+	double ret = (double)tmp / 10;
+	return ret;
+}
+
+int get_user() { //USER의 수를 구하는 함수
+	struct utmp *user;
+	setutent();
+	int ret = 0;
+	while((user = getutent()) != NULL)
+		if(user->ut_type == USER_PROCESS)
+			ret++;
+	endutent();
+
+	return ret;
+}
+
+long long get_uptime() { //UPTIME을 초단위로 바꾸는 함수
+	char buffer[MAX];
+	memset(buffer, 0, sizeof(buffer));
+
+	int fd;
+	if((fd = open("/proc/uptime", O_RDONLY)) < 0) {
+		fprintf(stderr, "/proc/uptime open error\n");
 		exit(1);
 	}
-	if(read(fd, parse_tmp, 10000) == 0) {
-		fprintf(stderr, "%s file read error\n", path);
+
+	read(fd, buffer, MAX);
+	long long ret;
+
+	int idx = 0;
+	while(buffer[idx] != ' ')
+		idx++;
+
+	memset(buffer + idx, 0, sizeof(char) *(MAX - idx));
+
+	ret = atoll(buffer);
+	close(fd);
+
+	return ret;
+}
+
+void get_loadavg(char* loadavg) { //loadavg를 string으로 저장하는 함수
+	int fd;
+	if((fd = open("/proc/loadavg", O_RDONLY)) <0) {
+		fprintf(stderr, "/proc/loadavg open error\n");
+		exit(1);
+	}
+	if(read(fd, loadavg, 14) == 0) {
+		fprintf(stderr, "/proc/loadavg read error\n");
+		exit(1);
+	}
+	close(fd);
+}
+
+void get_cpu_info() { //proc/stat으로부터 cpu정보를 받는 함
+	int fd;
+	int total = 0;
+	int tmp_us, tmp_sy, tmp_ni, tmp_id, tmp_wa, tmp_hi, tmp_si, tmp_st;
+	char tmp_stat[MAX]; //stat파일 읽을 버퍼
+	memset(tmp_stat, 0, sizeof(tmp_stat));
+	if((fd = open("/proc/stat", O_RDONLY)) < 0) {
+		fprintf(stderr, "/proc/stat file open error\n");
+		exit(1);
+	}
+	read(fd, tmp_stat, MAX);
+
+	memset(current_cpu, 0, sizeof(current_cpu));
+
+	char *ptr = strtok(tmp_stat, " ");
+	//CPU정보 읽기
+	for(int i = 0; i < 8; i++) {
+		ptr = strtok(NULL, " ");
+		current_cpu[i] = atoi(ptr);
+		current_cpu[8] += current_cpu[i];
+	}
+
+	//백분율로 계산
+	us = (double)(current_cpu[0] - before_cpu[0]) / (double)(current_cpu[8] - before_cpu[8]) *100;
+	ni = (double)(current_cpu[1] - before_cpu[1]) / (double)(current_cpu[8] - before_cpu[8]) *100;
+	sy = (double)(current_cpu[2] - before_cpu[2]) / (double)(current_cpu[8] - before_cpu[8]) *100;
+	id = (double)(current_cpu[3] - before_cpu[3]) / (double)(current_cpu[8] - before_cpu[8]) *100;
+	wa = (double)(current_cpu[4] - before_cpu[4]) / (double)(current_cpu[8] - before_cpu[8]) *100;
+	hi = (double)(current_cpu[5] - before_cpu[5]) / (double)(current_cpu[8] - before_cpu[8]) *100;
+	si = (double)(current_cpu[6] - before_cpu[6]) / (double)(current_cpu[8] - before_cpu[8]) *100;
+	st = (double)(current_cpu[7] - before_cpu[7]) / (double)(current_cpu[8] - before_cpu[8]) *100;
+
+	memcpy(before_cpu, current_cpu, sizeof(before_cpu));
+}
+
+void get_mem_info() {//proc/meminfo로부터 정보를 얻는 함수
+	int fd;
+
+	if((fd = open("/proc/meminfo", O_RDONLY)) < 0) { //proc/meminfo 파일 열기
+		fprintf(stderr, "/proc/meminfo file open error\n");
+		exit(1);
+	}
+	char mem_tmp[MAX]; //파일로부터 읽어올 버퍼
+	memset(mem_tmp, 0, MAX);
+	if(read(fd, mem_tmp, MAX) == 0) { //proc/meminfo 파일 읽기
+		fprintf(stderr, "/proc/meminfo file read error\n");
+		exit(1);
+	}
+
+	close(fd);
+
+	char mem[MAX][MAX];
+	memset(mem, 0, sizeof(mem));
+	int i = 0;
+	char *ptr = strtok(mem_tmp, "\n"); //읽은 정보 파싱
+	while(ptr != NULL) {
+		strcpy(mem[i++], ptr);
+		ptr = strtok(NULL, "\n"); //개행으로 정보 파싱
+	}
+
+	//파싱한 정보 int형으로 바꾸기
+	int mtotal = get_value(mem[0]); 
+	int mfree = get_value(mem[1]); 
+	int	buffers = get_value(mem[3]);
+	int SReclaimable = get_value(mem[23]);
+	int cache = get_value(mem[4]);
+	int mused = mtotal - mfree - buffers - cache - SReclaimable;
+	int stotal = get_value(mem[14]);
+	int sfree = get_value(mem[15]);
+	int mavail = get_value(mem[2]);
+
+	//header 4행 정보 저장
+	memtotal = (double)mtotal / 1024;
+	memfree = (double)mfree / 1024;
+	memused = (double)mused / 1024;
+	membuff_cache = (double)(buffers + cache + SReclaimable) / 1024;
+	swaptotal = (double)stotal / 1024;
+	swapfree = (double)sfree / 1024;
+	swapused = (double)(stotal - sfree) / 1024;
+	swapavail_mem = (double)mavail / 1024;
+
+}
+
+void get_proc_stat(char* proc_stat_path, int index) { //proc/pid/stat에서 정보를 얻는 함
+	int fd;
+	char stat_tmp[MAX];
+	memset(stat_tmp, 0, MAX);
+	if((fd = open(proc_stat_path, O_RDONLY)) < 0) { //해당 process의 stat 읽어오기
+		fprintf(stderr, "process stat file open error\n");
+		exit(1);
+	}
+	if(read(fd, stat_tmp, MAX) == 0) { //stat파일 읽기
+		fprintf(stderr, "stat file read error\n");
+		exit(1);
+	}
+	close(fd); //stat파일 닫기
+
+	char *ptr = strtok(stat_tmp, " "); //공백을 기준으로 stat 정보 자르기
+	int i = 0;
+
+	char stats[MAX][MAX];
+	memset(stats, 0, sizeof(stats));
+	while(ptr != NULL) { //공백을 기준으로 stat 정보 자르기
+		strcpy(stats[i++],ptr);
+		ptr = strtok(NULL, " ");
+	}
+	procs[index].S = stats[2][0]; //S저장
+	switch(stats[2][0]) { //cpu상태 계산
+		case 'R':
+			run++;
+			break;
+		case 'S':
+		case 'I':
+			slp++;
+			break;
+		case 'T':
+		case 't':
+			stop++;
+			break;
+		case 'Z':
+			zombie++;
+			break;
+	}
+
+	struct stat statbuf; //process stat구조체
+	stat(proc_stat_path, &statbuf); //해당 stat 읽기
+	struct passwd *upasswd = getpwuid(statbuf.st_uid); //uid읽어오기수
+
+	//username 읽기
+	for(int i = 0; i < MAX; i++) {
+		if(upasswd->pw_name[i] != '\0') {
+			procs[index].USER[i] = upasswd->pw_name[i];
+		}
+		else {
+			break;
+		}
+	}
+	strncpy(procs[index].PR, stats[17], 3); //PR저장
+	procs[index].NI = atoi(stats[18]); //NI저장
+
+	long long utime = atoll(stats[13]);
+	long long stime = atoll(stats[14]);
+	long long uptime = get_uptime();
+	int hertz = (int)sysconf(_SC_CLK_TCK);
+
+	double tic = (double)(utime + stime) / hertz;
+	procs[index].CPU = (double)tic / uptime * 100;//%CPU구하기
+	procs[index].CPU = round(procs[index].CPU); //소수점 첫째자리까지 반올림
+	procs[index].TIME = (double)(utime + stime) / ((double)hertz / 100); //TIME+구하기
+
+	//COMMAND저장
+	if(option_c) {
+		i = 1;
+		procs[index].COMMAND[0] = '[';
+		while(stats[1][i] != ')') {
+			procs[index].COMMAND[i] = stats[1][i];
+			i++;
+		}
+		procs[index].COMMAND[i] = ']';
+	}
+	else {
+		i = 0;
+		while(stats[1][i+1] != ')') {
+			procs[index].COMMAND[i] = stats[1][i+1];
+			i++;
+		}
+	}
+}
+
+void get_proc_status(const char* proc_status_path, int index) { //proc/pid/status에서 정보를 얻는 함
+	int fd;
+	char status_tmp[MAX];
+	if((fd = open(proc_status_path, O_RDONLY)) < 0) {//proc/pid/status 파일 열기
+		fprintf(stderr, "/proc/pid/status file open error\n");
+		exit(1);
+	}
+	if(read(fd, status_tmp, MAX) == 0) { //모든 행 읽기
+		fprintf(stderr, "/proc/pid/status file read error\n");
 		exit(1);
 	}
 	close(fd);
 
+	char *ptr = strtok(status_tmp, "\n"); //개행 단위로 토큰을 자른다
 	int i = 0;
-	//읽어온 정보 개행단위로 파싱하기
-	char *ptr = strtok(parse_tmp, "\n");
-	while(ptr != NULL) {
-		strcpy(parse[i++], ptr);
+	char status[MAX][MAX];
+	memset(status, 0, sizeof(status));
+	while(ptr != NULL) { //2차원 배열 status에 행마다 저장
+		strcpy(status[i++], ptr);
 		ptr = strtok(NULL, "\n");
 	}
-
-	i = 0;
-	int idx = 0;
-	for(int i = 0; i < MID; i++) {
-		if(!strncmp(parse[i], "address sizes", 13)) {
-			if(strlen(address_size) == 0) {
-				strcpy(address_size, parse[i] + start_point(parse[i]));
-			}
-		}
-		else if(!strncmp(parse[i], "vendor_id", 9)) {
-			if(strlen(vendor_id) == 0) {
-				strcpy(vendor_id, parse[i] + start_point(parse[i]));
-			}
-		}
-		else if(!strncmp(parse[i], "cpu family", 10)) {
-			cpu_family = get_value(parse[i]);
-		}
-		else if(!strncmp(parse[i], "model", 5) && strlen(model) == 0) {
-			strcpy(model, parse[i] + start_point(parse[i]));
-		}
-		else if(!strncmp(parse[i], "model name", 10)) {
-			if(strlen(model_name) == 0) {
-				strcpy(model_name, parse[i] + start_point(parse[i]));
-			}
-		}
-		else if(!strncmp(parse[i], "stepping", 8)) {
-			stepping = get_value(parse[i]);
-		}
-		else if(!strncmp(parse[i], "cpu MHz", 7)) {
-			if(strlen(mhz) == 0) {
-				strcpy(mhz, parse[i] + start_point(parse[i]));
-			}
-		}
-		else if(!strncmp(parse[i], "bogomips", 8)) {
-			if(strlen(bogomips) == 0) {
-				strcpy(bogomips, parse[i] + start_point(parse[i]));
-			}
-		}
-		else if(!strncmp(parse[i], "flags", 5)) {
-			if(strlen(flags) == 0) {
-				strncpy(flags, parse[i] + start_point(parse[i]), LONG);
-			}
-		}
-		else if(!strncmp(parse[i], "cpu cores", 9)) {
-			core = get_value(parse[i]);
-		}
-		else if(!strncmp(parse[i], "siblings", 8)) {
-			siblings = get_value(parse[i]);
-		}
-	}
-	//flag 내용을 공백 단위로 파싱
-	char flagcopy[LONG];
-	memcpy(flagcopy, flags, LONG);
-
-	char parse_flag[SHORT][SHORT];
-	i = 0;
-	ptr = strtok(flagcopy, " ");
-	while(ptr != NULL) {
-		strcpy(parse_flag[i++], ptr);
-		ptr = strtok(NULL, " ");
-	}
-
-	//아무것도 없을 경우 full로 표시
-	strcpy(virtualization, "full");
-	for(i = 0; i < SHORT; i++) {
-		if(!strcmp(parse_flag[i], "vmx")) { //virtualization VT-x로 표시
-			strcpy(virtualization, "VT-x");
-		}
-		if(!strcmp(parse_flag[i], "svm")) { //virtualization AMD-V로 표시
-			strcpy(virtualization, "AMD-V");
-		}
-		if(!strcmp(parse_flag[i], "lm")) { //op-mode long mode이므로 64bit
-			if(op_64) continue;
-			op_64 = true;
-			if(strlen(op_mode) == 0) {
-				strcpy(op_mode, "64-bit");
-			}
-			else {
-				strcat(op_mode, ", 64-bit");
-			}
-		}
-		if(!strcmp(parse_flag[i], "tm")) { //op-mode transparent mode이므로 32bit
-			if(op_32) continue;
-			op_32 = true;
-			if(strlen(op_mode) == 0) {
-				strcpy(op_mode, "32-bit");
-			}
-			else {
-				strcat(op_mode, ", 32-bit");
-			}
-		}
-		if(!strcmp(parse_flag[i], "rm")) { //op-mode read mode이므로 16bit
-			if(op_16) continue;
-			op_16 = true;
-			if(strlen(op_mode) == 0) {
-				strcpy(op_mode, "16-bit");
-			}
-			else {
-				strcat(op_mode, ", 16-bit");
-			}
-		}
-	}
-
-	//thread-per-core구하기
-	thread_per_core = siblings / core;
+	procs[index].VIRT = get_value(status[17]); //VIRT값 str -> integer로 변환
+	procs[index].RES = get_value(status[21]); //RES값 str -> integer로 변환
+	procs[index].SHR = get_value(status[23]) + get_value(status[24]); //SHR값 str -> integer로 변환
+	procs[index].MEM = (double)procs[index].RES / (memtotal * 1024) * 100;
 }
 
-void get_vulnerability() { //sys/devices/system/cpu/vulnerabilities 디렉토리를 읽는 함
-	char *itlb_multihit_path = "/sys/devices/system/cpu/vulnerabilities/itlb_multihit";
-	char *l1tf_path = "/sys/devices/system/cpu/vulnerabilities/l1tf";
-	char *mds_path = "/sys/devices/system/cpu/vulnerabilities/mds";
-	char *meltdown_path = "/sys/devices/system/cpu/vulnerabilities/meltdown";
-	char *bypass_path = "/sys/devices/system/cpu/vulnerabilities/spec_store_bypass";
-	char *spectre_v1_path = "/sys/devices/system/cpu/vulnerabilities/spectre_v1";
-	char *spectre_v2_path = "/sys/devices/system/cpu/vulnerabilities/spectre_v2";
-	char *srbds_path = "/sys/devices/system/cpu/vulnerabilities/srbds";
-	char *tsx_path = "/sys/devices/system/cpu/vulnerabilities/tsx_async_abort";
-
-	int fd; //file descriptor
-
-	//Itlb multihit를 읽어옴
-	if(access(itlb_multihit_path, F_OK) == 0) {
-		if((fd = open(itlb_multihit_path, O_RDONLY)) <0) {
-			fprintf(stderr, "%s file open error\n", itlb_multihit_path);
-			exit(1);
-		}
-		if(read(fd, itlb_multihit, MID) == 0) {
-			fprintf(stderr, "%s file read error\n", itlb_multihit_path);
-			exit(1);
-		}
-		close(fd);
+void get_cmdline(const char* path, int index) { //proc/pid/cmdline에서 정보를 얻기
+	int fd;
+	if((fd = open(path, O_RDONLY)) < 0) { //proc/pid/cmdline 파일 열기
+		fprintf(stderr, "/proc/pid/cmdline file open error\n");
+		exit(1);
 	}
-
-	//l1tf를 읽어옴
-	if(access(l1tf_path, F_OK) == 0) {
-		if((fd = open(l1tf_path, O_RDONLY)) <0) {
-			fprintf(stderr, "%s file open error\n", l1tf_path);
-			exit(1);
-		}
-		if(read(fd, l1tf, MID) == 0) {
-			fprintf(stderr, "%s file read error\n", l1tf_path);
-			exit(1);
-		}
-		close(fd);
+	if(read(fd, procs[index].COMMAND, MAX) < 0) { //proc/pid/cmdline 파일 읽기
+		fprintf(stderr, "/proc/pid/cmdline file read error\n");
+		exit(1);
 	}
-
-	//Mds를 읽어옴
-	if(access(mds_path, F_OK) == 0) {
-		if((fd = open(mds_path, O_RDONLY)) <0) {
-			fprintf(stderr, "%s file open error\n", mds_path);
-			exit(1);
-		}
-		if(read(fd, mds, MID) == 0) {
-			fprintf(stderr, "%s file read error\n", mds_path);
-			exit(1);
-		}
-		close(fd);
-	}
-
-	//Meltdown을 읽어옴
-	if(access(meltdown_path, F_OK) == 0) {
-		if((fd = open(meltdown_path, O_RDONLY)) <0) {
-			fprintf(stderr, "%s file open error\n", meltdown_path);
-			exit(1);
-		}
-		if(read(fd, meltdown, MID) == 0) {
-			fprintf(stderr, "%s file read error\n", meltdown_path);
-			exit(1);
-		}
-		close(fd);
-	}
-
-	//spec store bypass를 읽어옴
-	if(access(bypass_path, F_OK) == 0) {
-		if((fd = open(bypass_path, O_RDONLY)) <0) {
-			fprintf(stderr, "%s file open error\n", bypass_path);
-			exit(1);
-		}
-		if(read(fd, spec_store_bypass, MID) == 0) {
-			fprintf(stderr, "%s 옴file read error\n", bypass_path);
-			exit(1);
-		}
-		close(fd);
-	}
-
-	//spectre v1을 읽어옴
-	if(access(spectre_v1_path, F_OK) == 0) {
-		if((fd = open(spectre_v1_path, O_RDONLY)) <0) {
-			fprintf(stderr, "%s file open error\n", spectre_v1_path);
-			exit(1);
-		}
-		if(read(fd, spectre_v1, MID) == 0) {
-			fprintf(stderr, "%s file read error\n", spectre_v1_path);
-			exit(1);
-		}
-		close(fd);
-	}
-
-	//spectre v2를 읽어옴
-	if(access(spectre_v2_path, F_OK) == 0) {
-		if((fd = open(spectre_v2_path, O_RDONLY)) <0) {
-			fprintf(stderr, "%s file open error\n", spectre_v2_path);
-			exit(1);
-		}
-		if(read(fd, spectre_v2, MID) == 0) {
-			fprintf(stderr, "%s file read error\n", spectre_v2_path);
-			exit(1);
-		}
-		close(fd);
-	}
-	//Srbds를 읽어옴
-	if(access(srbds_path, F_OK) == 0) {
-		if((fd = open(srbds_path, O_RDONLY)) <0) {
-			fprintf(stderr, "%s file open error\n", srbds_path);
-			exit(1);
-		}
-		if(read(fd, srbds, MID) == 0) {
-			fprintf(stderr, "%s file read error\n", srbds_path);
-			exit(1);
-		}
-		close(fd);
-	}
-
-	//Tsx async abort를 읽어
-	if(access(tsx_path, F_OK) == 0) {
-		if((fd = open(tsx_path, O_RDONLY)) <0) {
-			fprintf(stderr, "%s file open error\n", tsx_path);
-			exit(1);
-		}
-		if(read(fd, tsx_async_abort, MID) == 0) {
-			fprintf(stderr, "%s file read error\n", tsx_path);
-			exit(1);
-		}
-		close(fd);
-	}
+	close(fd);
 }
 
-//cpu 개수 구하기
-void get_cpus() {
-	DIR *dir; //디렉토리 포인터
-	struct dirent *dp; //디렉토리 엔트리 포인터
-	char *path = "/sys/devices/system/cpu";
-	if((dir = opendir(path)) == NULL) {
-		fprintf(stderr, "%s directory open error\n", path);
+void get_procs() { //pid를 확인하고 process 정보들을 가져오는 함수
+	DIR *proc_dir; ///proc디렉토리 포인터
+	struct dirent *dp; //proc디렉토리 엔트리 포인터
+	if((proc_dir = opendir(proc_path)) == NULL) { //dir open
+		fprintf(stderr, "/proc open error\n");
 		exit(1);
 	}
 
-	while((dp = readdir(dir)) != NULL) {
-		if(!strncmp(dp->d_name, "cpu", 3)) { //파일명이 cpu로 시작하는 경우
-			if(isdigit(dp->d_name[3])) //cpuN인 경우
-				cpu++; //cpu 개수를 셈
+	while((dp = readdir(proc_dir)) != NULL) { //하위 파일들을 하나씩 읽는다.
+		if(isdigit(dp->d_name[0])) { //만약 폴더가 숫자로 시작하는 경우(process폴더인 경우)
+			procs[tasks].PID = atoi(dp->d_name);
+			tasks++;
 		}
 	}
+
+	char proc_stat_path[MAX]; //prod/pid/sta t경로
+	char proc_status_path[MAX]; //proc/pid/status 경로
+	char proc_cmdline_path[MAX]; //proc/pid/cmdline 경로
+	for(int i = 0; i < tasks; i++) {
+		memset(proc_stat_path, 0, MAX);
+		memset(proc_status_path, 0, MAX);
+		memset(proc_cmdline_path, 0, MAX);
+		sprintf(proc_stat_path, "%s/%ld/stat", proc_path, procs[i].PID);
+		sprintf(proc_status_path, "%s/%ld/status", proc_path, procs[i].PID);
+		sprintf(proc_cmdline_path, "%s/%ld/cmdline", proc_path, procs[i].PID);
+		if(access(proc_stat_path, F_OK) == 0) //파일이 존재할 때만 열기
+			get_proc_stat(proc_stat_path, i); //proc/pid/stat의 정보를 얻는다.
+		if(access(proc_status_path, F_OK) == 0) //파일이 존재할 때만 열기
+			get_proc_status(proc_status_path, i); //proc/pid/status의 정보를 얻는다.
+		if(option_c && access(proc_cmdline_path, F_OK) == 0) get_cmdline(proc_cmdline_path, i);
+	}
+	closedir(proc_dir);
 }
 
-//L1d, L1i, L2, L3 cache구하기
-void get_cache() {
-	char *L1d_path = "/sys/devices/system/cpu/cpu0/cache/index0/size";
-	char *L1d_way =  "/sys/devices/system/cpu/cpu0/cache/index0/ways_of_associativity";
-	char *L1d_type =  "/sys/devices/system/cpu/cpu0/cache/index0/type";
-	char *L1d_level =  "/sys/devices/system/cpu/cpu0/cache/index0/level";
 
-	char *L1i_path = "/sys/devices/system/cpu/cpu0/cache/index1/size";
-	char *L1i_way =  "/sys/devices/system/cpu/cpu0/cache/index1/ways_of_associativity";
-	char *L1i_type =  "/sys/devices/system/cpu/cpu0/cache/index1/type";
-	char *L1i_level =  "/sys/devices/system/cpu/cpu0/cache/index1/level";
-
-	char *L2_path = "/sys/devices/system/cpu/cpu0/cache/index2/size";
-	char *L2_way =  "/sys/devices/system/cpu/cpu0/cache/index2/ways_of_associativity";
-	char *L2_type =  "/sys/devices/system/cpu/cpu0/cache/index2/type";
-	char *L2_level =  "/sys/devices/system/cpu/cpu0/cache/index2/level";
-
-	char *L3_path = "/sys/devices/system/cpu/cpu0/cache/index3/size";
-	char *L3_way =  "/sys/devices/system/cpu/cpu0/cache/index3/ways_of_associativity";
-	char *L3_type =  "/sys/devices/system/cpu/cpu0/cache/index3/type";
-	char *L3_level =  "/sys/devices/system/cpu/cpu0/cache/index3/level";
-
-	int fd;
-	int rst;
-	char tmp[SHORT];
-
-	//L1d cache 구하기
-	if(access(L1d_path, F_OK) == 0) {
-		memset(tmp, 0, SHORT);
-		if((fd = open(L1d_path, O_RDONLY)) < 0) {
-			fprintf(stderr, "%s file open error\n", L1d_path);
-			exit(1);
-		}
-		if(read(fd, tmp, SHORT) == 0) {
-			fprintf(stderr, "%s file read error\n", L1d_path);
-			exit(1);
-		}
-		close(fd);
-		rst = get_value(tmp); //크기에 core를 곱한다.
-
-		if(rst < 1024)
-			sprintf(L1d_C.one_size, "%dK", rst);
-		else if(rst < 1024*1024)
-			sprintf(L1d_C.one_size, "%dM", rst / 1024);
-		else
-			sprintf(L1d_C.one_size, "%dG", rst / (1024*1024));
-
-		if(rst*core < 1024) {
-			sprintf(L1d, "%d KiB", rst*core);
-			sprintf(L1d_C.all_size, "%dK", rst*core);
-		}
-		else if(rst*core < 1024 *1024) {
-			sprintf(L1d, "%d MiB", rst*core / 1024);
-			sprintf(L1d_C.all_size, "%dM", rst*core / 1024);
-		}
-		else {
-			sprintf(L1d, "%d GiB", rst*core / (1024 *1024));
-			sprintf(L1d_C.all_size, "%dG", rst*core / (1024*1024));
-		}
-	}
-
-	if(access(L1d_way, F_OK) == 0) {
-		if((fd = open(L1d_way, O_RDONLY)) < 0) {
-			fprintf(stderr, "%s file open error\n", L1d_way);
-			exit(1);
-		}
-		if(read(fd, L1d_C.ways, 30) == 0) {
-			fprintf(stderr, "%s file read error\n", L1d_way);
-			exit(1);
-		}
-		close(fd);
-	}
-
-	if(access(L1d_type, F_OK) == 0) {
-		if((fd = open(L1d_type, O_RDONLY)) < 0) {
-			fprintf(stderr, "%s file open error\n", L1d_type);
-			exit(1);
-		}
-		if(read(fd, L1d_C.type, 30) == 0) {
-			fprintf(stderr, "%s file read error\n", L1d_type);
-			exit(1);
-		}
-		close(fd);
-	}
-
-	if(access(L1d_level, F_OK) == 0) {
-		if((fd = open(L1d_level, O_RDONLY)) < 0) {
-			fprintf(stderr, "%s file open error\n", L1d_level);
-			exit(1);
-		}
-		if(read(fd, L1d_C.level, 30) == 0) {
-			fprintf(stderr, "%s file read error\n", L1d_level);
-			exit(1);
-		}
-		close(fd);
-	}
-
-
-
-	//L1i cache 구하기
-	if(access(L1i_path, F_OK) == 0) {
-		memset(tmp, 0, SHORT);
-
-		if((fd = open(L1i_path, O_RDONLY)) < 0) {
-			fprintf(stderr, "%s file open error\n", L1i_path);
-			exit(1);
-		}
-		if(read(fd, tmp, SHORT) == 0) {
-			fprintf(stderr, "%s file read error\n", L1i_path);
-			exit(1);
-		}
-		close(fd);
-		rst = get_value(tmp); //크기를 숫자로 바꾼다
-		
-		if(rst < 1024)
-			sprintf(L1i_C.one_size, "%dK", rst);
-		else if(rst < 1024*1024)
-			sprintf(L1i_C.one_size, "%dM", rst / 1024);
-		else
-			sprintf(L1i_C.one_size, "%dG", rst / (1024*1024));
-
-		if(rst*core < 1024) {
-			sprintf(L1i, "%d KiB", rst*core);
-			sprintf(L1i_C.all_size, "%dK", rst*core);
-		}
-		else if(rst*core < 1024 *1024) {
-			sprintf(L1i, "%d MiB", rst*core / 1024);
-			sprintf(L1i_C.all_size, "%dM", rst*core / 1024);
-		}
-		else {
-			sprintf(L1i, "%d GiB", rst*core / (1024 *1024));
-			sprintf(L1i_C.all_size, "%dG", rst*core / (1024*1024));
-		}
-	}
-
-
-	if(access(L1i_way, F_OK) == 0) {
-		if((fd = open(L1i_way, O_RDONLY)) < 0) {
-			fprintf(stderr, "%s file open error\n", L1i_way);
-			exit(1);
-		}
-		if(read(fd, L1i_C.ways, 30) == 0) {
-			fprintf(stderr, "%s file read error\n", L1i_way);
-			exit(1);
-		}
-		close(fd);
-	}
-
-	if(access(L1i_type, F_OK) == 0) {
-		if((fd = open(L1i_type, O_RDONLY)) < 0) {
-			fprintf(stderr, "%s file open error\n", L1i_type);
-			exit(1);
-		}
-		if(read(fd, L1i_C.type, 30) == 0) {
-			fprintf(stderr, "%s file read error\n", L1i_type);
-			exit(1);
-		}
-		close(fd);
-	}
-
-	if(access(L1i_level, F_OK) == 0) {
-		if((fd = open(L1i_level, O_RDONLY)) < 0) {
-			fprintf(stderr, "%s file open error\n", L1i_level);
-			exit(1);
-		}
-		if(read(fd, L1i_C.level, 30) == 0) {
-			fprintf(stderr, "%s file read error\n", L1i_level);
-			exit(1);
-		}
-		close(fd);
-	}
-
-
-	//L2 cache 구하기
-	if(access(L2_path, F_OK) == 0) {
-		memset(tmp, 0, SHORT);
-
-		if((fd = open(L2_path, O_RDONLY)) < 0) {
-			fprintf(stderr, "%s file open error\n", L2_path);
-			exit(1);
-		}
-		if(read(fd, tmp, SHORT) == 0) {
-			fprintf(stderr, "%s file read error\n", L2_path);
-			exit(1);
-		}
-		close(fd);
-		rst = get_value(tmp); //크기에 core를 곱한다.
-		
-		if(rst < 1024)
-			sprintf(L2_C.one_size, "%dK", rst);
-		else if(rst < 1024*1024)
-			sprintf(L2_C.one_size, "%dM", rst / 1024);
-		else
-			sprintf(L2_C.one_size, "%dG", rst / (1024*1024));
-
-		if(rst*core < 1024) {
-			sprintf(L2, "%d KiB", rst*core);
-			sprintf(L2_C.all_size, "%dK", rst*core);
-		}
-		else if(rst*core < 1024 *1024) {
-			sprintf(L2, "%d MiB", rst*core / 1024);
-			sprintf(L2_C.all_size, "%dM", rst*core / 1024);
-		}
-		else {
-			sprintf(L2, "%d GiB", rst*core / (1024 *1024));
-			sprintf(L2_C.all_size, "%dG", rst*core / (1024*1024));
-		}
-
-	}
-
-
-	if(access(L2_way, F_OK) == 0) {
-		if((fd = open(L2_way, O_RDONLY)) < 0) {
-			fprintf(stderr, "%s file open error\n", L2_way);
-			exit(1);
-		}
-		if(read(fd, L2_C.ways, 30) == 0) {
-			fprintf(stderr, "%s file read error\n", L2_way);
-			exit(1);
-		}
-		close(fd);
-	}
-
-	if(access(L2_type, F_OK) == 0) {
-		if((fd = open(L2_type, O_RDONLY)) < 0) {
-			fprintf(stderr, "%s file open error\n", L2_type);
-			exit(1);
-		}
-		if(read(fd, L2_C.type, 30) == 0) {
-			fprintf(stderr, "%s file read error\n", L2_type);
-			exit(1);
-		}
-		close(fd);
-	}
-
-	if(access(L2_level, F_OK) == 0) {
-		if((fd = open(L2_level, O_RDONLY)) < 0) {
-			fprintf(stderr, "%s file open error\n", L2_level);
-			exit(1);
-		}
-		if(read(fd, L2_C.level, 30) == 0) {
-			fprintf(stderr, "%s file read error\n", L2_level);
-			exit(1);
-		}
-		close(fd);
-	}
-
-
-
-	//L3 cache 구하기
-	if(access(L3_path, F_OK) == 0) {
-		memset(tmp, 0, SHORT);
-
-		if((fd = open(L3_path, O_RDONLY)) < 0) {
-			fprintf(stderr, "%s file open error\n", L3_path);
-			exit(1);
-		}
-		if(read(fd, tmp, SHORT) == 0) {
-			fprintf(stderr, "%s file read error\n", L3_path);
-			exit(1);
-		}
-		close(fd);
-		rst = get_value(tmp); //크기에 core를 곱한다.
-	
-		if(rst < 1024)
-			sprintf(L3_C.one_size, "%dK", rst);
-		else if(rst < 1024*1024)
-			sprintf(L3_C.one_size, "%dM", rst / 1024);
-		else
-			sprintf(L3_C.one_size, "%dG", rst / (1024*1024));
-
-		if(rst < 1024) {
-			sprintf(L3, "%d KiB", rst);
-			sprintf(L3_C.all_size, "%dK", rst);
-		}
-		else if(rst < 1024 *1024) {
-			sprintf(L3, "%d MiB", rst / 1024);
-			sprintf(L3_C.all_size, "%dM", rst / 1024);
-		}
-		else {
-			sprintf(L3, "%d GiB", rst / (1024 *1024));
-			sprintf(L3_C.all_size, "%dG", rst / (1024*1024));
-		}
-	}
-
-	if(access(L3_way, F_OK) == 0) {
-		if((fd = open(L3_way, O_RDONLY)) < 0) {
-			fprintf(stderr, "%s file open error\n", L3_way);
-			exit(1);
-		}
-		if(read(fd, L3_C.ways, 30) == 0) {
-			fprintf(stderr, "%s file read error\n", L3_way);
-			exit(1);
-		}
-		close(fd);
-	}
-
-	if(access(L3_type, F_OK) == 0) {
-		if((fd = open(L3_type, O_RDONLY)) < 0) {
-			fprintf(stderr, "%s file open error\n", L3_type);
-			exit(1);
-		}
-		if(read(fd, L3_C.type, 30) == 0) {
-			fprintf(stderr, "%s file read error\n", L3_type);
-			exit(1);
-		}
-		close(fd);
-	}
-
-	if(access(L3_level, F_OK) == 0) {
-		if((fd = open(L3_level, O_RDONLY)) < 0) {
-			fprintf(stderr, "%s file open error\n", L3_level);
-			exit(1);
-		}
-		if(read(fd, L3_C.level, 30) == 0) {
-			fprintf(stderr, "%s file read error\n", L3_level);
-			exit(1);
-		}
-		close(fd);
-	}
-
-
-}
-
-//online cpu 얻기
-void get_online() {
-	char *path = "/sys/devices/system/cpu/online";
-	int fd = 0;
-	if(access(path, F_OK) == 0) {
-		if((fd = open(path, O_RDONLY)) < 0) {
-			fprintf(stderr, "%s file open error\n", path);
-			exit(1);
-		}
-		if(read(fd, online_cpu, SHORT) == 0) {
-			fprintf(stderr, "%s file open error\n", path);
-			exit(1);
-		}
-		close(fd);
-	}
-}
-
-//cpu max/min Mhz 얻기
-void get_Mhz() {
-	char *maxpath = "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq";
-	char *minpath = "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_min_freq";
-
-	int fd;
-	if(access(maxpath, F_OK) == 0) {
-		if((fd = open(maxpath, O_RDONLY)) < 0) {
-			fprintf(stderr, "%s file open error\n", maxpath);
-			exit(1);
-		}
-		if(read(fd, max_mhz, SHORT) == 0) {
-			fprintf(stderr, "%s file open error\n", maxpath);
-			exit(1);
-		}
-		close(fd);
-	}
-
-	if(access(minpath, F_OK) == 0) {
-		if((fd = open(minpath, O_RDONLY)) < 0) {
-			fprintf(stderr, "%s file open error\n", minpath);
-			exit(1);
-		}
-		if(read(fd, min_mhz, SHORT) == 0) {
-			fprintf(stderr, "%s file open error\n", minpath);
-			exit(1);
-		}
-		close(fd);
-	}
-}
-
-//NUMA node 정보 얻기
-void get_NUMA() {
-	char *path = "/sys/devices/system/node";
-	char nodepath[SHORT];
-	DIR *dir;
-	struct dirent *dp;
-	int fd;
-	if(access(path, F_OK)) return;
-	if((dir = opendir(path)) == NULL) {
-		fprintf(stderr, "%s directory open error\n", path);
-		exit(1);
-	}
-
-	while((dp = readdir(dir)) != NULL) {
-		if(!strncmp(dp->d_name, "node", 4)) { //node로 시작하는 directory인 경우
-			memset(nodepath, 0, SHORT);
-			strcpy(nodepath, path);
-			strcat(nodepath, "/");
-			strcat(nodepath, dp->d_name);
-			strcat(nodepath, "/cpulist");
-			if((fd = open(nodepath, O_RDONLY)) < 0) {
-				fprintf(stderr, "%s file open error\n", nodepath);
-				exit(1);
+void sort_by_cpu() { //%CPU순으로 정렬
+	for(int i = 0; i < tasks-1; i++) {
+		int mnum = i;
+		for(int j = i+1; j < tasks; j++) {
+			if(procs[mnum].CPU < procs[j].CPU) {
+				mnum = j;
 			}
-			if(read(fd, NUMA_nodes[NUMA_node], SHORT) == 0) {
-				fprintf(stderr, "%s file read error\n", nodepath);
-				exit(1);
-			}
-			close(fd);
-			NUMA_node++; //NUMA node의 수 증가
-		}
-	}
-}
-
-//Architecture 얻기
-void get_arch() {
-	DIR *dir;
-	struct dirent *dp;
-	if(access("/lib", F_OK)) return;
-	if((dir = opendir("/lib")) == NULL) {
-		fprintf(stderr, "/lib directory open error\n");
-		exit(1);
-	}
-
-	while((dp = readdir(dir)) != NULL) {
-		int len = strlen(dp->d_name); //파일 이름 길이
-		for(int i = 0; i <= len - 10; i++) {
-			if(!strcmp(dp->d_name + i, "-linux-gnu")) {
-				strncpy(architecture, dp->d_name, len - 10);
+			else if(procs[mnum].CPU == procs[j].CPU) { //사용량이 같을 경우 PID가 작은 순으로 정렬
+				if(procs[mnum].PID > procs[j].PID) mnum = j;
 			}
 		}
+		if(mnum != i) swap(&procs[mnum], &procs[i]);
 	}
 }
 
-//byte order 얻기
-void get_byte_order() {
-	volatile uint32_t i = 0x01234567;
-	if((*((uint8_t*)(&i))) == 0x67) 
-		strcpy(byte_order, "Little Endian");
-	else
-		strcpy(byte_order, "Big Endian");
+void sort_by_time() { //TIME+순으로 정렬
+	for(int i = 0; i < tasks-1; i++) {
+		int mnum = i;
+		for(int j = i+1; j < tasks; j++) {
+			if(procs[mnum].TIME < procs[j].TIME) {
+				mnum = j;
+			}
+			else if(procs[mnum].TIME == procs[j].TIME) {
+				if(procs[mnum].PID > procs[j].PID) mnum = j;
+			}
+		}
+		if(mnum != i) swap(&procs[mnum], &procs[i]);
+	}
 }
 
-void print() {
-	int len = 33;
-	int start = 0;
-	struct winsize win;
+void sort_by_mem() { //%MEM순으로 정렬
+	for(int i = 0; i < tasks-1; i++) {
+		int mnum = i;
+		for(int j = i+1; j < tasks; j++) {
+			if(procs[mnum].MEM < procs[j].MEM) {
+				mnum = j;
+			}
+			else if(procs[mnum].MEM == procs[j].MEM) {
+				if(procs[mnum].PID > procs[j].PID) mnum = j;
+			}
+		}
+		if(mnum != i) swap(&procs[mnum], &procs[i]);
+	}
+}
+
+void get_data() {//데이터를 읽어오는 함수
+	tasks = 0, run = 0, slp = 0, stop = 0, zombie = 0;
+	FILE* fp;
+	struct tm *t; //서버시간 불러올
+	time_t tim = time(NULL);
+	t = localtime(&tim);
+	int user = get_user(); //user 수 읽기
+	long long uptime = get_uptime(); //uptime 읽기
+	int uptime_h = uptime / 3600;
+	int uptime_m = (uptime - (uptime_h * 3600)) / 60;
+	char loadavg[15];
+	get_loadavg(loadavg);
+	loadavg[14] = '\0';
+	get_mem_info();
+	get_cpu_info();
+	get_procs();
+
 	if(ioctl(0, TIOCGWINSZ, (char*)&win) < 0) {
 		fprintf(stderr, "ioctl error\n");
 		exit(1);
 	}
 
-	if(strlen(architecture)) {
-		printf("%-33s", "Architecture:");
-		printf("%s\n", architecture);
+	memset(result, '\0', sizeof(result));
+	//head 저장
+	if(!uptime_line) {
+		sprintf(result[print_row++], "top - %02d:%02d:%02d up  %2d:%02d,%3d user,  load average: %s", t->tm_hour, t->tm_min, t->tm_sec, uptime_h, uptime_m, user, loadavg);
 	}
+	sprintf(result[print_row++], "Tasks: %d total,   %d running, %d sleeping,   %d stopped,   %d zombie", tasks, run, slp, stop, zombie);
+	sprintf(result[print_row++], "%%Cpu(s):  %.1f us,  %.1f sy,  %.1f ni,  %.1f id,  %.1f wa,  %.1f hi,  %.1f si,  %.1f st", us, sy, ni, id, wa, hi, si, st);
+	sprintf(result[print_row++], "MiB Mem :   %.1f total,   %.1f free,   %.1f used,   %.1f buff/cache", memtotal, memfree, memused, membuff_cache);
+	sprintf(result[print_row++], "MiB Swap:   %.1f total,   %.1f free,   %.1f used.   %.1f avail Mem", swaptotal, swapfree, swapused, swapavail_mem);
+	strcpy(result[print_row++], "");
+	snprintf(result[print_row++],win.ws_col, "%7s %-8s %3s %3s %7s %6s %6s %c %4s %4s   %7s %s%s",
+			"PID", "USER", "PR", "NI", "VIRT", "RES", "SHR", 'S', "%CPU", "%MEM", "TIME+", "COMMAND", blank);
+}
 
-	if(strlen(op_mode)) {
-		printf("%-33s", "CPU op-mode(s):");
-		printf("%s\n", op_mode);
-	}
-
-	if(strlen(byte_order)) {
-		printf("%-33s", "Byte Order:");
-		printf("%s\n", byte_order);
-	}
-
-	if(strlen(address_size)) {
-		printf("%-33s", "Address sizes:");
-		printf("%s\n", address_size);
-	}
-
-	printf("%-33s", "CPU(s):");
-	printf("%d\n", cpu);
-
-	if(strlen(online_cpu)) {
-		printf("%-33s", "On-line CPU(s) list:");
-		printf("%s\n", online_cpu);
-	}
-
-	printf("%-33s", "Thread(s) per core:");
-	printf("%d\n", thread_per_core);
-
-	printf("%-33s", "Core(s) per socket:");
-	printf("%d\n", core_per_socket);
-
-	printf("%-33s", "Socket(s):");
-	printf("%d\n", socket);
-
-	if(NUMA_node) {
-		printf("%-33s", "NUMA node(s):");
-		printf("%d\n", NUMA_node);
-	}
-
-	if(strlen(vendor_id)) {
-		printf("%-33s", "Vendor ID:");
-		printf("%s\n", vendor_id);
-	}
-
-	printf("%-33s", "CPU family:");
-	printf("%d\n", cpu_family);
-
-	if(strlen(model)) {
-		printf("%-33s", "Model:");
-		printf("%s\n", model);
-	}
-
-	if(strlen(model_name)) {
-		printf("%-33s", "Model name:");
-		printf("%s\n", model_name);
-	}
-
-	printf("%-33s", "Stepping:");
-	printf("%d\n", stepping);
-
-	if(strlen(mhz)) {
-		printf("%-33s", "CPU MHz:");
-		printf("%s\n", mhz);
-	}
-
-	if(strlen(max_mhz)) {
-		printf("%-33s", "CPU max MHz:");
-		printf("%s\n", max_mhz);
-	}
-
-	if(strlen(min_mhz)) {
-		printf("%-33s", "CPU min MHz:");
-		printf("%s\n", min_mhz);
-	}
-
-	if(strlen(bogomips)) {
-		printf("%-33s", "BogoMIPS:");
-		printf("%s\n", bogomips);
-	}
-
-	if(strlen(virtualization)) {
-		printf("%-33s", "Virtualization:");
-		printf("%s\n", virtualization);
-	}
-
-	if(strlen(L1d)) {
-		printf("%-33s", "L1d cache:");
-		printf("%s\n", L1d);
-	}
-
-	if(strlen(L1i)) {
-		printf("%-33s", "L1i cache:");
-		printf("%s\n", L1i);
-	}
-
-	if(strlen(L2)) {
-		printf("%-33s", "L2 cache:");
-		printf("%s\n", L2);
-	}
-
-	if(strlen(L3)) {
-		printf("%-33s", "L3 cache:");
-		printf("%s\n", L3);
-	}
-
-	for(int i = 0; i < NUMA_node; i++) {
-		char tmp[SHORT];
-		memset(tmp, 0, SHORT);
-		sprintf(tmp, "NUMA node%d CPU(s):", i);
-		printf("%-33s", tmp);
-		printf("%s\n", NUMA_nodes[i]);
-	}
-
-	if(strlen(itlb_multihit)) {
-		start = 0;
-		printf("%-33s", "Vulnerability Itlb multihit:");
-		if(strlen(itlb_multihit) > win.ws_col - len) {
-			while(true) {
-				for(int i = 0; i < win.ws_col-len; i++) {
-					putc(itlb_multihit[start++], stdout);
-				}
-				if(itlb_multihit[start] != '\0')
-					printf("%33s", " ");
-				else {
-					printf("\n");
-					break;
-				}
-			}
+bool ispid(int pid) { //출력해야하는 pid인지 판단
+	if(special_pid == 0) return true; //출력해야하는 pid의 수가 0인 경우 출력
+	bool ret = false;
+	for(int i = 0; i < special_pid; i++) {
+		if(pids[i] == pid) {
+			ret = true;
+			break;
 		}
-		else {
-			printf("%s\n", itlb_multihit);
+	}
+	return ret;
+}
+
+bool isuser(char* str) { //출력해야하는 user인지 판단
+	if(special_user == 0) return true; //출력해야하는 user의 수가 0인 경우 출력
+	bool ret = false;
+	if(!strcmp(users, str)) {
+		ret = true;
+	}
+
+	return ret;
+}
+
+void print_1() { //나열모드가 아닐 때 결과를 출력하는 함수
+	//터미널 크기 구하기
+	if(ioctl(0, TIOCGWINSZ, (char*)&win) < 0) {
+		fprintf(stderr, "ioctl error\n");
+		exit(1);
+	}
+
+	char tm[8]; //TIME 문자열 저장함수
+	for(int i = start_row; i < tasks; i++) {
+		if(option_i && procs[i].CPU < 0.1) continue;
+		memset(tm, 0, sizeof(tm));//TIME을 문자열로 나타내기
+		int min = procs[i].TIME / 6000;
+		int sec = (procs[i].TIME - (min *6000)) / 100;
+		int rest = (procs[i].TIME - (min *6000) - (sec * 100));
+		sprintf(tm, "%d:%02d.%02d", min, sec, rest);
+		char username[MAX];
+		memcpy(username, procs[i].USER, MAX);
+		if(username[7] != '\0') {
+			username[7] = '+'; //이름이 너무 긴 경우 뒤에 '+'로 표시
+			memset(username + 8, '\0', MAX - 8);
+		}
+		if(ispid(procs[i].PID) && isuser(procs[i].USER)) {//출력하고자 하는 pid만 출력
+			snprintf(result[print_row++], win.ws_col, "%7ld %-8s %3s %3d %7lld %6lld %6lld %c %4.1lf %4.1lf   %7s %s", 
+					procs[i].PID, username, procs[i].PR, procs[i].NI, procs[i].VIRT, procs[i].RES, 
+					procs[i].SHR, procs[i].S, procs[i].CPU, procs[i].MEM, tm, procs[i].COMMAND);
 		}
 	}
 
-	if(strlen(l1tf)) {
-		start = 0;
-		printf("%-33s", "Vulnerability L1tf:");
-		if(strlen(l1tf) > win.ws_col - len) {
-			while(true) {
-				for(int i = 0; i < win.ws_col-len; i++) {
-					putc(l1tf[start++], stdout);
-				}
-				if(l1tf[start] != '\0')
-					printf("%33s", " ");
-				else {
-					printf("\n");
-					break;
-				}
-			}
-		}
-		else {
-			printf("%s\n", l1tf);
-		}
+	//내용 출력
+	if(!uptime_line) {
+		for(int i = 0; i < 6; i++)
+			mvprintw(i, 0, "%s", result[i]);
+		attron(A_REVERSE);
+		mvprintw(6, 0, "%s", result[6] + begin[start_col]);
+		attroff(A_REVERSE);
+		for(int i = 7; i <= win.ws_row; i++)
+			mvprintw(i, 0, "%s", result[i] + begin[start_col]);
 	}
-
-	if(strlen(mds)) {
-		start = 0;
-		printf("%-33s", "Vulnerability Mds:");
-		if(strlen(mds) > win.ws_col - len) {
-			while(true) {
-				for(int i = 0; i < win.ws_col-len; i++) {
-					putc(mds[start++], stdout);
-				}
-				if(mds[start] != '\0')
-					printf("%33s", " ");
-				else {
-					printf("\n");
-					break;
-				}
-			}
-		}
-		else {
-			printf("%s\n", mds);
-		}
-	}
-
-	if(strlen(meltdown)) {
-		start = 0;
-		printf("%-33s", "Vulnerability Meltdown:");
-		if(strlen(meltdown) > win.ws_col - len) {
-			while(true) {
-				for(int i = 0; i < win.ws_col-len; i++) {
-					putc(meltdown[start++], stdout);
-				}
-				if(meltdown[start] != '\0')
-					printf("%33s", " ");
-				else {
-					printf("\n");
-					break;
-				}
-			}
-		}
-		else {
-			printf("%s\n", meltdown);
-		}
-	}
-
-	if(strlen(spec_store_bypass)) {
-		start = 0;
-		printf("%-33s", "Vulnerability Spec store bypass:");
-		if(strlen(spec_store_bypass) > win.ws_col - len) {
-			while(true) {
-				for(int i = 0; i < win.ws_col-len; i++) {
-					putc(spec_store_bypass[start++], stdout);
-				}
-				if(spec_store_bypass[start] != '\0')
-					printf("%33s", " ");
-				else {
-					printf("\n");
-					break;
-				}
-			}
-		}
-		else {
-			printf("%s\n", spec_store_bypass);
-		}
-	}
-
-	if(strlen(spectre_v1)) {
-		start = 0;
-		printf("%-33s", "Vulnerability Spectre v1:");
-		if(strlen(spectre_v1) > win.ws_col - len) {
-			while(true) {
-				for(int i = 0; i < win.ws_col-len; i++) {
-					putc(spectre_v1[start++], stdout);
-				}
-				if(spectre_v1[start] != '\0')
-					printf("%33s", " ");
-				else {
-					printf("\n");
-					break;
-				}
-			}
-		}
-		else {
-			printf("%s\n", spectre_v1);
-		}
-	}
-
-	if(strlen(spectre_v2)) {
-		start = 0;
-		printf("%-33s", "Vulnerability Spectre v2:");
-		if(strlen(spectre_v2) > win.ws_col - len) {
-			while(true) {
-				for(int i = 0; i < win.ws_col-len; i++) {
-					putc(spectre_v2[start++], stdout);
-				}
-				if(spectre_v2[start] != '\0')
-					printf("%33s", " ");
-				else {
-					printf("\n");
-					break;
-				}
-			}
-		}
-		else {
-			printf("%s\n", spectre_v2);
-		}
-	}
-
-	if(strlen(srbds)) {
-		start = 0;
-		printf("%-33s", "Vulnerability Srbds:");
-		if(strlen(srbds) > win.ws_col - len) {
-			while(true) {
-				for(int i = 0; i < win.ws_col-len; i++) {
-					putc(srbds[start++], stdout);
-				}
-				if(srbds[start] != '\0')
-					printf("%33s", " ");
-				else {
-					printf("\n");
-					break;
-				}
-			}
-		}
-		else {
-			printf("%s\n", srbds);
-		}
-	}
-
-	if(strlen(tsx_async_abort)) {
-		start = 0;
-		printf("%-33s", "Vulnerability Tsx async abort:");
-		if(strlen(tsx_async_abort) > win.ws_col - len) {
-			while(true) {
-				for(int i = 0; i < win.ws_col-len; i++) {
-					putc(tsx_async_abort[start++], stdout);
-				}
-				if(tsx_async_abort[start] != '\0')
-					printf("%33s", " ");
-				else {
-					printf("\n");
-					break;
-				}
-			}
-		}
-		else {
-			printf("%s\n", tsx_async_abort);
-		}
-	}
-
-	if(strlen(flags)) {
-		start = 0;
-		printf("%-33s", "Flags:");
-		if(strlen(flags) > win.ws_col - len) {
-			while(true) {
-				for(int i = 0; i < win.ws_col-len; i++) {
-					putc(flags[start++], stdout);
-				}
-				if(flags[start] != '\0') {
-					printf("%33s", " ");
-				}
-				else {
-					printf("\n");
-					break;
-				}
-			}
-		}
-		else {
-			printf("%s\n", flags);
-		}
+	else {
+		for(int i = 0; i < 5; i++)
+			mvprintw(i, 0, "%s", result[i]);
+		attron(A_REVERSE);
+		mvprintw(5, 0, "%s", result[5] + begin[start_col]);
+		attroff(A_REVERSE);
+		for(int i = 6; i <= win.ws_row; i++)
+			mvprintw(i, 0, "%s", result[i] + begin[start_col]);
 	}
 }
 
-void print2() {
-	printf("NAME ONE-SIZE ALL-SIZE WAYS TYPE        LEVEL\n");
-	printf("L1d  %8s %8s %4s %-12s %4s\n", L1d_C.one_size, L1d_C.all_size, L1d_C.ways, L1d_C.type, L1d_C.level);
-	printf("L1i  %8s %8s %4s %-12s %4s\n", L1i_C.one_size, L1i_C.all_size, L1i_C.ways, L1i_C.type, L1i_C.level);
-	printf("L2   %8s %8s %4s %-12s %4s\n", L2_C.one_size, L2_C.all_size, L2_C.ways, L2_C.type, L2_C.level);
-	printf("L3   %8s %8s %4s %-12s %4s\n", L3_C.one_size, L3_C.all_size, L3_C.ways, L3_C.type, L3_C.level);
+
+void print_2() { //나열 모드 결과를 출력하는 함수
+	printf("\n");
+	//터미널 크기 구하기
+	if(ioctl(0, TIOCGWINSZ, (char*)&win) < 0) {
+		fprintf(stderr, "ioctl error\n");
+		exit(1);
+	}
+
+
+	char tm[8]; //TIME 문자열 저장함수
+	for(int i = start_row; i < tasks; i++) {
+		if(option_i && procs[i].CPU < 0.1) continue;
+		memset(tm, 0, sizeof(tm));//TIME을 문자열로 나타내기
+		int min = procs[i].TIME / 6000;
+		int sec = (procs[i].TIME - (min *6000)) / 100;
+		int rest = (procs[i].TIME - (min *6000) - (sec * 100));
+		sprintf(tm, "%d:%02d.%02d", min, sec, rest);
+		char username[MAX];
+		memcpy(username, procs[i].USER, MAX);
+		if(username[7] != '\0') {
+			username[7] = '+'; //이름이 너무 긴 경우 뒤에 '+'로 표시
+			memset(username + 8, '\0', MAX - 8);
+		}
+		if(ispid(procs[i].PID) && isuser(procs[i].USER)) {//출력하고자 하는 pid만 출력
+			snprintf(result[print_row++], win.ws_col, "%7ld %-8s %3s %3d %7lld %6lld %6lld %c %4.1lf %4.1lf   %7s %s", 
+					procs[i].PID, username, procs[i].PR, procs[i].NI, procs[i].VIRT, procs[i].RES, 
+					procs[i].SHR, procs[i].S, procs[i].CPU, procs[i].MEM, tm, procs[i].COMMAND);
+		}
+	}
+
+	//내용 출력
+	for(int i = 0; i < print_row; i++)
+		printf("%s\n", result[i]);
+}
+
+void operation_d() { //d옵션을 수행하는 함수
+	alarm(0); //alarm 취소
+	char str[MAX];
+	memset(str, 0, MAX);
+	int idx = 0;
+	int c;
+	int chk = 0;
+	if(!uptime_line) { //uptime_line이 있는 경우
+		mvaddstr(5, 0, blank2);
+		mvaddstr(5, 0, "Change delay from 3.0 to "); 
+	}
+	else { //uptime_line이 없는 경우
+		mvaddstr(4, 0, blank2);
+		mvaddstr(4, 0, "Change delay from 3.0 to ");
+	}
+	while((c = getch()) != '\n') {
+		if(c == 8) { //backspace인 경우
+			delch();
+			continue;
+		}
+		if(c == 27) { //esc를 누른 경우
+			chk = 1;
+			break;
+		}
+		if(c != -1)
+			str[idx++] = c;
+	}
+	if(!chk) {//esc를 누른 경우 취소
+		delay = atoi(str);
+	}
+	alarm(3);
+	raise(SIGALRM);
+}
+
+void operation_u() {
+	alarm(0); //alarm 취소
+	char str[MAX];
+	memset(str, 0, MAX);
+	int idx = 0;
+	char c;
+	int chk = 0;
+	if(!uptime_line) { //uptime_line이 있는 경우
+		mvaddstr(5, 0, blank2);
+		mvaddstr(5, 0, "Which user (blank for all) "); 
+	}
+	else { //uptime_line이 없는 경우
+		mvaddstr(4, 0, blank2);
+		mvaddstr(4, 0, "Which user (blank for all) ");
+	}
+	char tmp[10];
+	while((c = getch()) != '\n') {
+		if(c == 8) { //backspace인 경우
+			idx--;
+			delch();
+			continue;
+		}
+		if(c == 27) { //esc를 누른 경우
+			chk = 1;
+			break;
+		}
+		if(c != -1)
+			str[idx++] = c;
+	}
+	if(!chk) { //esc를 누르지 않았을 때
+		strncpy(users, str, MAX); //출력하고자 하는 user에 복사
+		mvaddstr(5, 0, users);
+		if(idx == 0) //아무것도 입력을 받지 않은 경우
+			special_user = 0;
+		else
+			special_user = 1;
+	}
+	alarm(delay);
+	raise(SIGALRM);
 
 }
+
+
+void operation_k() { //k옵션을 수행하는 함수
+	alarm(0); //alarm 취소
+	char str[MAX];
+	char sig[10];
+	char tmp[MAX];
+	char trash[MAX];
+	memset(str, 0, MAX);
+	memset(sig, 0, 10);
+	int idx = 0;
+	int c;
+	int chk = 0;
+	memset(tmp, 0, MAX);
+	sprintf(tmp, "PID to signal/kill [default pid = %ld] ", procs[0].PID);
+	if(!uptime_line) { //uptime_line이 있는 경우
+		mvaddstr(5, 0, blank2);
+		mvaddstr(5, 0, tmp); //default는 가장 위에 있는 Process
+	}
+	else { //uptime_line이 없는 경우
+		mvaddstr(4, 0, blank2);
+		mvaddstr(4, 0, tmp);
+	}
+	while((c = getch()) != '\n') {
+		if(c == 8) { //backspace인 경우
+			idx--;
+			delch();
+			continue;
+		}
+		if(c == 27) { //esc를 누른 경우
+			chk = 1;
+			break;
+		}
+		if(c != -1)
+			str[idx++] = c;
+	}
+	if(!chk) {//esc를 누르지 않은 경우
+		if(idx == 0) //아무것도 입력을 받지 않은 경우
+			kill_pid = procs[0].PID;
+		else
+			kill_pid = atoi(str);
+
+		memset(tmp, 0, MAX);
+		sprintf(tmp, "Send pid %d signal [15/sigterm] ", kill_pid);
+		if(!uptime_line) { //uptime_line이 있는 경우
+			mvaddstr(5, 0, blank2);
+			mvaddstr(5, 0, tmp);
+		}
+		else { //uptime_line이 없는 경우
+			mvaddstr(4, 0, blank2);
+			mvaddstr(4, 0, tmp);
+		}
+		idx = 0;
+		tcflush(0, TCIFLUSH);
+		while((c = getch()) != '\n') {
+			if(c == 8) { //backspace인 경우
+				idx--;
+				delch();
+				continue;
+			}
+			if(c == 27) { //esc를 누른 경우
+				chk = 1;
+				break;
+			}
+			if(c != -1)
+				sig[idx++] = c;
+		}
+		if(!chk) { //esc를 누르지 않은 경우
+			int signal = 0;
+			for(int i = 0; i < idx; i++) {
+				if(isdigit(sig[i])) {
+					signal = signal*10 + (sig[i] - '0');
+				}
+			}
+			if(signal == 9) {
+				kill(kill_pid, SIGKILL);
+			}
+		}
+	}
+	alarm(delay);
+	raise(SIGALRM);
+}
+
+
+
+void start_status() { //ncurses 초기 설정
+	noecho(); //echo 제거
+	curs_set(0); //커서 안보이게 함
+	initscr(); //출력 윈도우 초기화
+	halfdelay(10); //0.1초마다 갱신
+	keypad(stdscr, true);
+}
+
+int get_ch() {
+	int ret;
+	struct termios buf, save;
+	tcgetattr(0, &save);
+	buf = save;
+	buf.c_lflag &= ~ICANON;
+	buf.c_lflag &= ~ECHO;
+	tcsetattr(0, TCSAFLUSH,	&buf);
+	ret = getchar();
+	tcsetattr(0, TCSAFLUSH, &save);
+	return ret;
+}
+
 
 int main(int argc, char **argv) {
-	socket = 1;
-
-	get_cpuinfo();
-	get_vulnerability();
-	get_cpus();
-	get_cache();
-	get_online();
-	get_Mhz();
-	get_NUMA();
-	get_arch();
-	get_byte_order();
-	core_per_socket = core / socket;
-
-	//뒤에 개행 지우기
-	delete_n(architecture);
-	delete_n(op_mode);
-	delete_n(byte_order);
-	delete_n(address_size);
-	delete_n(online_cpu);
-	delete_n(vendor_id);
-	delete_n(model);
-	delete_n(model_name);
-	delete_n(mhz);
-	delete_n(max_mhz);
-	delete_n(min_mhz);
-	delete_n(bogomips);
-	delete_n(virtualization);
-	delete_n(L1d);
-	delete_n(L1i);
-	delete_n(L2);
-	delete_n(L3);
-	for(int i = 0; i < NUMA_node; i++)
-		delete_n(NUMA_nodes[i]);
-	delete_n(itlb_multihit);
-	delete_n(l1tf);
-	delete_n(mds);
-	delete_n(meltdown);
-	delete_n(spec_store_bypass);
-	delete_n(spectre_v1);
-	delete_n(spectre_v2);
-	delete_n(srbds);
-	delete_n(tsx_async_abort);
-	delete_n(flags);
-
-	delete_n(L1d_C.one_size);
-	delete_n(L1d_C.ways);
-	delete_n(L1d_C.type);
-	delete_n(L1d_C.level);
-
-	delete_n(L1i_C.one_size);
-	delete_n(L1i_C.ways);
-	delete_n(L1i_C.type);
-	delete_n(L1i_C.level);
-
-	delete_n(L2_C.one_size);
-	delete_n(L2_C.ways);
-	delete_n(L2_C.type);
-	delete_n(L2_C.level);
-
-	delete_n(L3_C.one_size);
-	delete_n(L3_C.ways);
-	delete_n(L3_C.type);
-	delete_n(L3_C.level);
-
-
-
-
-	//앞에 불필요한 공백 지우기
-	delete_blank(architecture);
-	delete_blank(op_mode);
-	delete_blank(byte_order);
-	delete_blank(address_size);
-	delete_blank(online_cpu);
-	delete_blank(vendor_id);
-	delete_blank(model);
-	delete_blank(model_name);
-	delete_blank(mhz);
-	delete_blank(max_mhz);
-	delete_blank(min_mhz);
-	delete_blank(bogomips);
-	delete_blank(virtualization);
-	delete_blank(L1d);
-	delete_blank(L1i);
-	delete_blank(L2);
-	delete_blank(L3);
-	for(int i = 0; i < NUMA_node; i++)
-		delete_blank(NUMA_nodes[i]);
-	delete_blank(itlb_multihit);
-	delete_blank(l1tf);
-	delete_blank(mds);
-	delete_blank(meltdown);
-	delete_blank(spec_store_bypass);
-	delete_blank(spectre_v1);
-	delete_blank(spectre_v2);
-	delete_blank(srbds);
-	delete_blank(tsx_async_abort);
-	delete_blank(flags);
-
-	delete_blank(L1d_C.one_size);
-	delete_blank(L1d_C.ways);
-	delete_blank(L1d_C.type);
-	delete_blank(L1d_C.level);
-
-	delete_blank(L1i_C.one_size);
-	delete_blank(L1i_C.ways);
-	delete_blank(L1i_C.type);
-	delete_blank(L1i_C.level);
-
-	delete_blank(L2_C.one_size);
-	delete_blank(L2_C.ways);
-	delete_blank(L2_C.type);
-	delete_blank(L2_C.level);
-
-	delete_blank(L3_C.one_size);
-	delete_blank(L3_C.ways);
-	delete_blank(L3_C.type);
-	delete_blank(L3_C.level);
-
-
-
-	if(argc == 1)
-		print();
-	else if(argc == 2 && !strcmp(argv[1], "-C")) {
-		print2();
+	if(ioctl(0, TIOCGWINSZ, (char*)&win) < 0) {
+		fprintf(stderr, "ioctl error\n");
+		exit(1);
 	}
+
+	for(int i = 12; i < MAX; i++) begin[i] = begin[i-1] + 8;
+	//초기 옵션 설정
+	signal(SIGALRM, handler); //alarm 시그널에 동작할 handler함수를 설정
+	option = 'P';
+	uptime_line = 0;
+	delay = 3;
+	option_c = 0;
+	option_i = 0;
+	print_max = -1;
+	special_pid = 0;
+	option_b = 0;
+	special_user = 0;
+	kill_pid = 0;
+	memset(blank2, ' ', 70);
+
+	//실행 전 옵션 parsing
+	for(int i = 1; i < argc; i++) {
+		if(!strcmp(argv[i], "-n")) { //실행 횟수 제한옵션
+			print_max = atoi(argv[i+1]);
+			if(print_max == 0) { //올바르지 않은 숫자를 입력한 경우 에러처리 후 종료
+				fprintf(stderr, "top: bad iterations argument '0'\n");
+				endwin();
+				exit(0);
+			}
+		}
+		if(!strcmp(argv[i], "-p")) { //특정 PID만 출력
+			int pid = atoi(argv[i+1]);
+			pids[special_pid] = pid;
+			special_pid++; //출력 pid 개수 증가
+		}
+		if(!strcmp(argv[i], "-b")) { //모든 process들을 나열하기만 하는 경우
+			option_b = 1;
+		}
+	}
+
+	get_data();
+	sort_by_cpu();
+	if(!option_b) {
+		start_status();
+		print_1();
+		refresh();
+	}
+	else {
+		print_2();
+	}
+	print_cnt = 1;
+	alarm(delay);
+	//3초마다 갱신
+	while(1) {
+		if(ioctl(0, TIOCGWINSZ, (char*)&win) < 0) {
+			fprintf(stderr, "ioctl error\n");
+			exit(1);
+		}
+		memset(blank, ' ', win.ws_col);
+
+
+		if(print_max != -1 && print_max == print_cnt) break;
+		int input = getch();
+		int sum = input;
+		if(input == 'q') { //종료
+			break;
+		}
+		else if(input == 'P') { //CPU순 정렬
+			option = 'P';
+			raise(SIGALRM);
+		}
+		else if(input == 'M') { //MEM순 정렬
+			option = 'M';
+			raise(SIGALRM);
+		}
+		else if(input == 'T') { //TIME순 정렬
+			option = 'T';
+			raise(SIGALRM);
+		}
+
+		else if(input == 'l') { //uptime_line숨김/표시
+			if(uptime_line)
+				uptime_line = 0;
+			else
+				uptime_line = 1;
+			raise(SIGALRM);
+		}
+
+		else if(input == ' ' || input == 27) { //space나 esc를 누를 경우 refresh
+			raise(SIGALRM);
+		}
+
+		else if(input == 'c') { //명령 인자 표시/ 비표시
+			if(option_c) option_c = 0;
+			else option_c = 1;
+			raise(SIGALRM);
+		}
+
+		else if(input == 'i') {
+			if(option_i) option_i = 0;
+			else option_i = 1;
+			raise(SIGALRM);
+		}
+
+		else if(input == 'd') { //delay를 설정
+			operation_d();
+		}
+
+		else if(input == 'u' || input == 'U') { //특정 user 설정
+			operation_u();
+		}
+
+		else if(input == 'k') { //kill하려는 pid 출력
+			operation_k();
+		}
+		else { //방향키를 입력하는 경우
+			if(sum == KEY_UP) {//위 방향키인 경우
+				start_row--;
+				if(start_row < 0) start_row = 0;
+				raise(SIGALRM);
+			}
+			else if(sum == KEY_DOWN) { //아래 방향키인 경우
+				start_row++;
+				if(start_row == tasks) start_row = tasks-1;
+				raise(SIGALRM);
+			}
+			else if(sum == KEY_LEFT) { //왼쪽 방향키인 경우
+				start_col--;
+				if(start_col < 0) start_col = 0;
+				raise(SIGALRM);
+			}
+			else if(sum == KEY_RIGHT) { //오른쪽 방향키인 경우
+				start_col++;
+				raise(SIGALRM);
+			}
+		}
+	}
+
+	endwin();
+	return 0;
 }

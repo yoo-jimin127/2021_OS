@@ -24,14 +24,14 @@
 
 struct tm *t;
 
-//옜 옜�
+//헤더 정보들
 int tasks, run, slp, stop, zombie;
 double us, sy, ni, id, wa, hi, si, st;
 double memtotal, memfree, memused, membuff_cache;
 double swaptotal, swapfree, swapused, swapavail_mem;
 
 
-//�
+//옵션 변수
 int start_row = 0, start_col = 0;
 int begin[MAX] = {0, 8, 17, 21, 25, 33, 40, 47, 48, 53, 59, 69};
 int option; //정렬 옵션
@@ -55,6 +55,7 @@ char users[MAX]; //출력 user 넣는 함수
 char blank[MAX];
 char blank2[MAX];
 int kill_pid; //signal을 보낼 pid
+//cpu읽은 정보
 int current_cpu[9];
 int before_cpu[9];
 
