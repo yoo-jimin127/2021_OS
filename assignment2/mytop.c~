@@ -24,14 +24,14 @@
 
 struct tm *t;
 
-//옜 옜�
+//헤더 정보들
 int tasks, run, slp, stop, zombie;
 double us, sy, ni, id, wa, hi, si, st;
 double memtotal, memfree, memused, membuff_cache;
 double swaptotal, swapfree, swapused, swapavail_mem;
 
 
-//�
+//옵션 변수
 int start_row = 0, start_col = 0;
 int begin[MAX] = {0, 8, 17, 21, 25, 33, 40, 47, 48, 53, 59, 69};
 int option; //정렬 옵션
@@ -55,6 +55,7 @@ char users[MAX]; //출력 user 넣는 함수
 char blank[MAX];
 char blank2[MAX];
 int kill_pid; //signal을 보낼 pid
+//cpu읽은 정보
 int current_cpu[9];
 int before_cpu[9];
 
@@ -111,6 +112,7 @@ void handler(int signo) { //SIGALRM 핸들러 함수
 	print_row = 0;
 	erase();
 	get_data();
+	//printf("%d\n", delay);
 	if(option == 'P')
 		sort_by_cpu();
 	else if(option == 'T')
@@ -284,6 +286,7 @@ void get_mem_info() {//proc/meminfo로부터 정보를 얻는 함수
 }
 
 void get_proc_stat(char* proc_stat_path, int index) { //proc/pid/stat에서 정보를 얻는 함
+	//fprintf(stderr, "%s\n", proc_stat_path);
 	int fd;
 	char stat_tmp[MAX];
 	memset(stat_tmp, 0, MAX);
@@ -397,6 +400,7 @@ void get_proc_status(const char* proc_status_path, int index) { //proc/pid/statu
 }
 
 void get_cmdline(const char* path, int index) { //proc/pid/cmdline에서 정보를 얻기
+	//fprintf(stderr, "%s\n", path);
 	int fd;
 	if((fd = open(path, O_RDONLY)) < 0) { //proc/pid/cmdline 파일 열기
 		fprintf(stderr, "/proc/pid/cmdline file open error\n");
