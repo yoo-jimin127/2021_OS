@@ -24,38 +24,38 @@
 
 struct tm *t;
 
-//Çì´õ Á¤º¸µé
+//í—¤ë” ì •ë³´ë“¤
 int tasks, run, slp, stop, zombie;
 double us, sy, ni, id, wa, hi, si, st;
 double memtotal, memfree, memused, membuff_cache;
 double swaptotal, swapfree, swapused, swapavail_mem;
 
 
-//¿É¼Ç º¯¼ö
+//ì˜µì…˜ ë³€ìˆ˜
 int start_row = 0, start_col = 0;
 int begin[MAX] = {0, 8, 17, 21, 25, 33, 40, 47, 48, 53, 59, 69};
-int option; //Á¤·Ä ¿É¼Ç
-int uptime_line; //uptime_line Ç¥½Ã ¿©ºÎ
-int delay; //refresh ÃÊ´ÜÀ§
-int option_c; //¸í·É ÀÎÀÚ Ç¥½Ã/ ºñÇ¥½Ã
+int option; //ì •ë ¬ ì˜µì…˜
+int uptime_line; //uptime_line í‘œì‹œ ì—¬ë¶€
+int delay; //refresh ì´ˆë‹¨ìœ„
+int option_c; //ëª…ë ¹ ì¸ì í‘œì‹œ/ ë¹„í‘œì‹œ
 char string[MAX];
-int option_i; //À¯ÈŞ ÇÁ·Î¼¼½º Ç¥½ÃÇÏÁö ¾Ê´Â ¿É¼Ç
-int print_cnt; //print ½ÇÇà È½¼ö
-int print_max; //print ÃÖ´ë ½ÇÇà ¼ö
+int option_i; //ìœ íœ´ í”„ë¡œì„¸ìŠ¤ í‘œì‹œí•˜ì§€ ì•ŠëŠ” ì˜µì…˜
+int print_cnt; //print ì‹¤í–‰ íšŸìˆ˜
+int print_max; //print ìµœëŒ€ ì‹¤í–‰ ìˆ˜
 
-int print_row; //result¹è¿­¿¡ ÀúÀåÇÒ Çà ¹ø
+int print_row; //resultë°°ì—´ì— ì €ì¥í•  í–‰ ë²ˆ
 
-int special_pid; //Æ¯Á¤ pid¸¸ Ãâ·ÂÇÏ´Â °æ¿ì pid °³¼ö 
-int pids[MAX]; //Ãâ·Â pid ³Ö´Â ÇÔ¼ö
+int special_pid; //íŠ¹ì • pidë§Œ ì¶œë ¥í•˜ëŠ” ê²½ìš° pid ê°œìˆ˜ 
+int pids[MAX]; //ì¶œë ¥ pid ë„£ëŠ” í•¨ìˆ˜
 
-int option_b; //³ª¿­¸ğµå ¿É¼Ç
+int option_b; //ë‚˜ì—´ëª¨ë“œ ì˜µì…˜
 
-int special_user; //Æ¯Á¤ user¸¸ Ãâ·ÂÇÏ´Â °æ¿ì userÀÇ ¼ö
-char users[MAX]; //Ãâ·Â user ³Ö´Â ÇÔ¼ö
+int special_user; //íŠ¹ì • userë§Œ ì¶œë ¥í•˜ëŠ” ê²½ìš° userì˜ ìˆ˜
+char users[MAX]; //ì¶œë ¥ user ë„£ëŠ” í•¨ìˆ˜
 char blank[MAX];
 char blank2[MAX];
-int kill_pid; //signalÀ» º¸³¾ pid
-//cpuÀĞÀº Á¤º¸
+int kill_pid; //signalì„ ë³´ë‚¼ pid
+//cpuì½ì€ ì •ë³´
 int current_cpu[9];
 int before_cpu[9];
 
@@ -90,10 +90,10 @@ void sort_by_time();
 int get_ch();
 void sort_by_mem();
 
-long long get_value(const char* str) { //stringÀ¸·ÎºÎÅÍ Á¤¼ö°ªÀ» ¾ò´Â ÇÔ¼ö
+long long get_value(const char* str) { //stringìœ¼ë¡œë¶€í„° ì •ìˆ˜ê°’ì„ ì–»ëŠ” í•¨ìˆ˜
 	long long ret = 0;
 	for(int i = 0; i < MAX; i++) {
-		if(isdigit(str[i])) { //¼ıÀÚÀÏ °æ¿ì 10À» °öÇÏ°í ´õÇÑ´Ù.
+		if(isdigit(str[i])) { //ìˆ«ìì¼ ê²½ìš° 10ì„ ê³±í•˜ê³  ë”í•œë‹¤.
 			ret = ret*10 + ((long long)str[i] - '0');
 		}
 	}
@@ -101,7 +101,7 @@ long long get_value(const char* str) { //stringÀ¸·ÎºÎÅÍ Á¤¼ö°ªÀ» ¾ò´Â ÇÔ¼ö
 	return ret;
 }
 
-void handler(int signo) { //SIGALRM ÇÚµé·¯ ÇÔ¼ö
+void handler(int signo) { //SIGALRM í•¸ë“¤ëŸ¬ í•¨ìˆ˜
 	if(print_max == print_cnt) {
 		endwin();
 		exit(0);
@@ -145,13 +145,13 @@ void swap(proc *a, proc *b) {
 	memcpy(b, &tmp, sizeof(proc));
 }
 
-double round(double a) { //¼Ò¼ö Ã¹Â°ÀÚ¸®¿¡¼­ ¹İ¿Ã¸²ÇÏ´Â ÇÔ¼ö
+double round(double a) { //ì†Œìˆ˜ ì²«ì§¸ìë¦¬ì—ì„œ ë°˜ì˜¬ë¦¼í•˜ëŠ” í•¨ìˆ˜
 	int tmp = a * 10;
 	double ret = (double)tmp / 10;
 	return ret;
 }
 
-int get_user() { //USERÀÇ ¼ö¸¦ ±¸ÇÏ´Â ÇÔ¼ö
+int get_user() { //USERì˜ ìˆ˜ë¥¼ êµ¬í•˜ëŠ” í•¨ìˆ˜
 	struct utmp *user;
 	setutent();
 	int ret = 0;
@@ -163,7 +163,7 @@ int get_user() { //USERÀÇ ¼ö¸¦ ±¸ÇÏ´Â ÇÔ¼ö
 	return ret;
 }
 
-long long get_uptime() { //UPTIMEÀ» ÃÊ´ÜÀ§·Î ¹Ù²Ù´Â ÇÔ¼ö
+long long get_uptime() { //UPTIMEì„ ì´ˆë‹¨ìœ„ë¡œ ë°”ê¾¸ëŠ” í•¨ìˆ˜
 	char buffer[MAX];
 	memset(buffer, 0, sizeof(buffer));
 
@@ -188,7 +188,7 @@ long long get_uptime() { //UPTIMEÀ» ÃÊ´ÜÀ§·Î ¹Ù²Ù´Â ÇÔ¼ö
 	return ret;
 }
 
-void get_loadavg(char* loadavg) { //loadavg¸¦ stringÀ¸·Î ÀúÀåÇÏ´Â ÇÔ¼ö
+void get_loadavg(char* loadavg) { //loadavgë¥¼ stringìœ¼ë¡œ ì €ì¥í•˜ëŠ” í•¨ìˆ˜
 	int fd;
 	if((fd = open("/proc/loadavg", O_RDONLY)) <0) {
 		fprintf(stderr, "/proc/loadavg open error\n");
@@ -201,11 +201,11 @@ void get_loadavg(char* loadavg) { //loadavg¸¦ stringÀ¸·Î ÀúÀåÇÏ´Â ÇÔ¼ö
 	close(fd);
 }
 
-void get_cpu_info() { //proc/statÀ¸·ÎºÎÅÍ cpuÁ¤º¸¸¦ ¹Ş´Â ÇÔ
+void get_cpu_info() { //proc/statìœ¼ë¡œë¶€í„° cpuì •ë³´ë¥¼ ë°›ëŠ” í•¨
 	int fd;
 	int total = 0;
 	int tmp_us, tmp_sy, tmp_ni, tmp_id, tmp_wa, tmp_hi, tmp_si, tmp_st;
-	char tmp_stat[MAX]; //statÆÄÀÏ ÀĞÀ» ¹öÆÛ
+	char tmp_stat[MAX]; //statíŒŒì¼ ì½ì„ ë²„í¼
 	memset(tmp_stat, 0, sizeof(tmp_stat));
 	if((fd = open("/proc/stat", O_RDONLY)) < 0) {
 		fprintf(stderr, "/proc/stat file open error\n");
@@ -216,14 +216,14 @@ void get_cpu_info() { //proc/statÀ¸·ÎºÎÅÍ cpuÁ¤º¸¸¦ ¹Ş´Â ÇÔ
 	memset(current_cpu, 0, sizeof(current_cpu));
 
 	char *ptr = strtok(tmp_stat, " ");
-	//CPUÁ¤º¸ ÀĞ±â
+	//CPUì •ë³´ ì½ê¸°
 	for(int i = 0; i < 8; i++) {
 		ptr = strtok(NULL, " ");
 		current_cpu[i] = atoi(ptr);
 		current_cpu[8] += current_cpu[i];
 	}
 
-	//¹éºĞÀ²·Î °è»ê
+	//ë°±ë¶„ìœ¨ë¡œ ê³„ì‚°
 	us = (double)(current_cpu[0] - before_cpu[0]) / (double)(current_cpu[8] - before_cpu[8]) *100;
 	ni = (double)(current_cpu[1] - before_cpu[1]) / (double)(current_cpu[8] - before_cpu[8]) *100;
 	sy = (double)(current_cpu[2] - before_cpu[2]) / (double)(current_cpu[8] - before_cpu[8]) *100;
@@ -236,16 +236,16 @@ void get_cpu_info() { //proc/statÀ¸·ÎºÎÅÍ cpuÁ¤º¸¸¦ ¹Ş´Â ÇÔ
 	memcpy(before_cpu, current_cpu, sizeof(before_cpu));
 }
 
-void get_mem_info() {//proc/meminfo·ÎºÎÅÍ Á¤º¸¸¦ ¾ò´Â ÇÔ¼ö
+void get_mem_info() {//proc/meminfoë¡œë¶€í„° ì •ë³´ë¥¼ ì–»ëŠ” í•¨ìˆ˜
 	int fd;
 
-	if((fd = open("/proc/meminfo", O_RDONLY)) < 0) { //proc/meminfo ÆÄÀÏ ¿­±â
+	if((fd = open("/proc/meminfo", O_RDONLY)) < 0) { //proc/meminfo íŒŒì¼ ì—´ê¸°
 		fprintf(stderr, "/proc/meminfo file open error\n");
 		exit(1);
 	}
-	char mem_tmp[MAX]; //ÆÄÀÏ·ÎºÎÅÍ ÀĞ¾î¿Ã ¹öÆÛ
+	char mem_tmp[MAX]; //íŒŒì¼ë¡œë¶€í„° ì½ì–´ì˜¬ ë²„í¼
 	memset(mem_tmp, 0, MAX);
-	if(read(fd, mem_tmp, MAX) == 0) { //proc/meminfo ÆÄÀÏ ÀĞ±â
+	if(read(fd, mem_tmp, MAX) == 0) { //proc/meminfo íŒŒì¼ ì½ê¸°
 		fprintf(stderr, "/proc/meminfo file read error\n");
 		exit(1);
 	}
@@ -255,13 +255,13 @@ void get_mem_info() {//proc/meminfo·ÎºÎÅÍ Á¤º¸¸¦ ¾ò´Â ÇÔ¼ö
 	char mem[MAX][MAX];
 	memset(mem, 0, sizeof(mem));
 	int i = 0;
-	char *ptr = strtok(mem_tmp, "\n"); //ÀĞÀº Á¤º¸ ÆÄ½Ì
+	char *ptr = strtok(mem_tmp, "\n"); //ì½ì€ ì •ë³´ íŒŒì‹±
 	while(ptr != NULL) {
 		strcpy(mem[i++], ptr);
-		ptr = strtok(NULL, "\n"); //°³ÇàÀ¸·Î Á¤º¸ ÆÄ½Ì
+		ptr = strtok(NULL, "\n"); //ê°œí–‰ìœ¼ë¡œ ì •ë³´ íŒŒì‹±
 	}
 
-	//ÆÄ½ÌÇÑ Á¤º¸ intÇüÀ¸·Î ¹Ù²Ù±â
+	//íŒŒì‹±í•œ ì •ë³´ intí˜•ìœ¼ë¡œ ë°”ê¾¸ê¸°
 	int mtotal = get_value(mem[0]); 
 	int mfree = get_value(mem[1]); 
 	int	buffers = get_value(mem[3]);
@@ -272,7 +272,7 @@ void get_mem_info() {//proc/meminfo·ÎºÎÅÍ Á¤º¸¸¦ ¾ò´Â ÇÔ¼ö
 	int sfree = get_value(mem[15]);
 	int mavail = get_value(mem[2]);
 
-	//header 4Çà Á¤º¸ ÀúÀå
+	//header 4í–‰ ì •ë³´ ì €ì¥
 	memtotal = (double)mtotal / 1024;
 	memfree = (double)mfree / 1024;
 	memused = (double)mused / 1024;
@@ -284,31 +284,31 @@ void get_mem_info() {//proc/meminfo·ÎºÎÅÍ Á¤º¸¸¦ ¾ò´Â ÇÔ¼ö
 
 }
 
-void get_proc_stat(char* proc_stat_path, int index) { //proc/pid/stat¿¡¼­ Á¤º¸¸¦ ¾ò´Â ÇÔ
+void get_proc_stat(char* proc_stat_path, int index) { //proc/pid/statì—ì„œ ì •ë³´ë¥¼ ì–»ëŠ” í•¨
 	int fd;
 	char stat_tmp[MAX];
 	memset(stat_tmp, 0, MAX);
-	if((fd = open(proc_stat_path, O_RDONLY)) < 0) { //ÇØ´ç processÀÇ stat ÀĞ¾î¿À±â
+	if((fd = open(proc_stat_path, O_RDONLY)) < 0) { //í•´ë‹¹ processì˜ stat ì½ì–´ì˜¤ê¸°
 		fprintf(stderr, "process stat file open error\n");
 		exit(1);
 	}
-	if(read(fd, stat_tmp, MAX) == 0) { //statÆÄÀÏ ÀĞ±â
+	if(read(fd, stat_tmp, MAX) == 0) { //statíŒŒì¼ ì½ê¸°
 		fprintf(stderr, "stat file read error\n");
 		exit(1);
 	}
-	close(fd); //statÆÄÀÏ ´İ±â
+	close(fd); //statíŒŒì¼ ë‹«ê¸°
 
-	char *ptr = strtok(stat_tmp, " "); //°ø¹éÀ» ±âÁØÀ¸·Î stat Á¤º¸ ÀÚ¸£±â
+	char *ptr = strtok(stat_tmp, " "); //ê³µë°±ì„ ê¸°ì¤€ìœ¼ë¡œ stat ì •ë³´ ìë¥´ê¸°
 	int i = 0;
 
 	char stats[MAX][MAX];
 	memset(stats, 0, sizeof(stats));
-	while(ptr != NULL) { //°ø¹éÀ» ±âÁØÀ¸·Î stat Á¤º¸ ÀÚ¸£±â
+	while(ptr != NULL) { //ê³µë°±ì„ ê¸°ì¤€ìœ¼ë¡œ stat ì •ë³´ ìë¥´ê¸°
 		strcpy(stats[i++],ptr);
 		ptr = strtok(NULL, " ");
 	}
-	procs[index].S = stats[2][0]; //SÀúÀå
-	switch(stats[2][0]) { //cpu»óÅÂ °è»ê
+	procs[index].S = stats[2][0]; //Sì €ì¥
+	switch(stats[2][0]) { //cpuìƒíƒœ ê³„ì‚°
 		case 'R':
 			run++;
 			break;
@@ -325,11 +325,11 @@ void get_proc_stat(char* proc_stat_path, int index) { //proc/pid/stat¿¡¼­ Á¤º¸¸¦
 			break;
 	}
 
-	struct stat statbuf; //process stat±¸Á¶Ã¼
-	stat(proc_stat_path, &statbuf); //ÇØ´ç stat ÀĞ±â
-	struct passwd *upasswd = getpwuid(statbuf.st_uid); //uidÀĞ¾î¿À±â¼ö
+	struct stat statbuf; //process statêµ¬ì¡°ì²´
+	stat(proc_stat_path, &statbuf); //í•´ë‹¹ stat ì½ê¸°
+	struct passwd *upasswd = getpwuid(statbuf.st_uid); //uidì½ì–´ì˜¤ê¸°ìˆ˜
 
-	//username ÀĞ±â
+	//username ì½ê¸°
 	for(int i = 0; i < MAX; i++) {
 		if(upasswd->pw_name[i] != '\0') {
 			procs[index].USER[i] = upasswd->pw_name[i];
@@ -338,8 +338,8 @@ void get_proc_stat(char* proc_stat_path, int index) { //proc/pid/stat¿¡¼­ Á¤º¸¸¦
 			break;
 		}
 	}
-	strncpy(procs[index].PR, stats[17], 3); //PRÀúÀå
-	procs[index].NI = atoi(stats[18]); //NIÀúÀå
+	strncpy(procs[index].PR, stats[17], 3); //PRì €ì¥
+	procs[index].NI = atoi(stats[18]); //NIì €ì¥
 
 	long long utime = atoll(stats[13]);
 	long long stime = atoll(stats[14]);
@@ -347,11 +347,11 @@ void get_proc_stat(char* proc_stat_path, int index) { //proc/pid/stat¿¡¼­ Á¤º¸¸¦
 	int hertz = (int)sysconf(_SC_CLK_TCK);
 
 	double tic = (double)(utime + stime) / hertz;
-	procs[index].CPU = (double)tic / uptime * 100;//%CPU±¸ÇÏ±â
-	procs[index].CPU = round(procs[index].CPU); //¼Ò¼öÁ¡ Ã¹Â°ÀÚ¸®±îÁö ¹İ¿Ã¸²
-	procs[index].TIME = (double)(utime + stime) / ((double)hertz / 100); //TIME+±¸ÇÏ±â
+	procs[index].CPU = (double)tic / uptime * 100;//%CPUêµ¬í•˜ê¸°
+	procs[index].CPU = round(procs[index].CPU); //ì†Œìˆ˜ì  ì²«ì§¸ìë¦¬ê¹Œì§€ ë°˜ì˜¬ë¦¼
+	procs[index].TIME = (double)(utime + stime) / ((double)hertz / 100); //TIME+êµ¬í•˜ê¸°
 
-	//COMMANDÀúÀå
+	//COMMANDì €ì¥
 	if(option_c) {
 		i = 1;
 		procs[index].COMMAND[0] = '[';
@@ -370,65 +370,65 @@ void get_proc_stat(char* proc_stat_path, int index) { //proc/pid/stat¿¡¼­ Á¤º¸¸¦
 	}
 }
 
-void get_proc_status(const char* proc_status_path, int index) { //proc/pid/status¿¡¼­ Á¤º¸¸¦ ¾ò´Â ÇÔ
+void get_proc_status(const char* proc_status_path, int index) { //proc/pid/statusì—ì„œ ì •ë³´ë¥¼ ì–»ëŠ” í•¨
 	int fd;
 	char status_tmp[MAX];
-	if((fd = open(proc_status_path, O_RDONLY)) < 0) {//proc/pid/status ÆÄÀÏ ¿­±â
+	if((fd = open(proc_status_path, O_RDONLY)) < 0) {//proc/pid/status íŒŒì¼ ì—´ê¸°
 		fprintf(stderr, "/proc/pid/status file open error\n");
 		exit(1);
 	}
-	if(read(fd, status_tmp, MAX) == 0) { //¸ğµç Çà ÀĞ±â
+	if(read(fd, status_tmp, MAX) == 0) { //ëª¨ë“  í–‰ ì½ê¸°
 		fprintf(stderr, "/proc/pid/status file read error\n");
 		exit(1);
 	}
 	close(fd);
 
-	char *ptr = strtok(status_tmp, "\n"); //°³Çà ´ÜÀ§·Î ÅäÅ«À» ÀÚ¸¥´Ù
+	char *ptr = strtok(status_tmp, "\n"); //ê°œí–‰ ë‹¨ìœ„ë¡œ í† í°ì„ ìë¥¸ë‹¤
 	int i = 0;
 	char status[MAX][MAX];
 	memset(status, 0, sizeof(status));
-	while(ptr != NULL) { //2Â÷¿ø ¹è¿­ status¿¡ Çà¸¶´Ù ÀúÀå
+	while(ptr != NULL) { //2ì°¨ì› ë°°ì—´ statusì— í–‰ë§ˆë‹¤ ì €ì¥
 		strcpy(status[i++], ptr);
 		ptr = strtok(NULL, "\n");
 	}
-	procs[index].VIRT = get_value(status[17]); //VIRT°ª str -> integer·Î º¯È¯
-	procs[index].RES = get_value(status[21]); //RES°ª str -> integer·Î º¯È¯
-	procs[index].SHR = get_value(status[23]) + get_value(status[24]); //SHR°ª str -> integer·Î º¯È¯
+	procs[index].VIRT = get_value(status[17]); //VIRTê°’ str -> integerë¡œ ë³€í™˜
+	procs[index].RES = get_value(status[21]); //RESê°’ str -> integerë¡œ ë³€í™˜
+	procs[index].SHR = get_value(status[23]) + get_value(status[24]); //SHRê°’ str -> integerë¡œ ë³€í™˜
 	procs[index].MEM = (double)procs[index].RES / (memtotal * 1024) * 100;
 }
 
-void get_cmdline(const char* path, int index) { //proc/pid/cmdline¿¡¼­ Á¤º¸¸¦ ¾ò±â
+void get_cmdline(const char* path, int index) { //proc/pid/cmdlineì—ì„œ ì •ë³´ë¥¼ ì–»ê¸°
 	int fd;
-	if((fd = open(path, O_RDONLY)) < 0) { //proc/pid/cmdline ÆÄÀÏ ¿­±â
+	if((fd = open(path, O_RDONLY)) < 0) { //proc/pid/cmdline íŒŒì¼ ì—´ê¸°
 		fprintf(stderr, "/proc/pid/cmdline file open error\n");
 		exit(1);
 	}
-	if(read(fd, procs[index].COMMAND, MAX) < 0) { //proc/pid/cmdline ÆÄÀÏ ÀĞ±â
+	if(read(fd, procs[index].COMMAND, MAX) < 0) { //proc/pid/cmdline íŒŒì¼ ì½ê¸°
 		fprintf(stderr, "/proc/pid/cmdline file read error\n");
 		exit(1);
 	}
 	close(fd);
 }
 
-void get_procs() { //pid¸¦ È®ÀÎÇÏ°í process Á¤º¸µéÀ» °¡Á®¿À´Â ÇÔ¼ö
-	DIR *proc_dir; ///procµğ·ºÅä¸® Æ÷ÀÎÅÍ
-	struct dirent *dp; //procµğ·ºÅä¸® ¿£Æ®¸® Æ÷ÀÎÅÍ
+void get_procs() { //pidë¥¼ í™•ì¸í•˜ê³  process ì •ë³´ë“¤ì„ ê°€ì ¸ì˜¤ëŠ” í•¨ìˆ˜
+	DIR *proc_dir; ///procë””ë ‰í† ë¦¬ í¬ì¸í„°
+	struct dirent *dp; //procë””ë ‰í† ë¦¬ ì—”íŠ¸ë¦¬ í¬ì¸í„°
 	if((proc_dir = opendir(proc_path)) == NULL) { //dir open
 		fprintf(stderr, "/proc open error\n");
 		exit(1);
 	}
 
-	while((dp = readdir(proc_dir)) != NULL) { //ÇÏÀ§ ÆÄÀÏµéÀ» ÇÏ³ª¾¿ ÀĞ´Â´Ù.
-		if(isdigit(dp->d_name[0])) { //¸¸¾à Æú´õ°¡ ¼ıÀÚ·Î ½ÃÀÛÇÏ´Â °æ¿ì(processÆú´õÀÎ °æ¿ì)
+	while((dp = readdir(proc_dir)) != NULL) { //í•˜ìœ„ íŒŒì¼ë“¤ì„ í•˜ë‚˜ì”© ì½ëŠ”ë‹¤.
+		if(isdigit(dp->d_name[0])) { //ë§Œì•½ í´ë”ê°€ ìˆ«ìë¡œ ì‹œì‘í•˜ëŠ” ê²½ìš°(processí´ë”ì¸ ê²½ìš°)
 			procs[tasks].PID = atoi(dp->d_name);
 			//printf("%s\n", dp->d_name);
 			tasks++;
 		}
 	}
 
-	char proc_stat_path[MAX]; //prod/pid/sta t°æ·Î
-	char proc_status_path[MAX]; //proc/pid/status °æ·Î
-	char proc_cmdline_path[MAX]; //proc/pid/cmdline °æ·Î
+	char proc_stat_path[MAX]; //prod/pid/sta tê²½ë¡œ
+	char proc_status_path[MAX]; //proc/pid/status ê²½ë¡œ
+	char proc_cmdline_path[MAX]; //proc/pid/cmdline ê²½ë¡œ
 	for(int i = 0; i < tasks; i++) {
 		memset(proc_stat_path, 0, MAX);
 		memset(proc_status_path, 0, MAX);
@@ -436,24 +436,24 @@ void get_procs() { //pid¸¦ È®ÀÎÇÏ°í process Á¤º¸µéÀ» °¡Á®¿À´Â ÇÔ¼ö
 		sprintf(proc_stat_path, "%s/%ld/stat", proc_path, procs[i].PID);
 		sprintf(proc_status_path, "%s/%ld/status", proc_path, procs[i].PID);
 		sprintf(proc_cmdline_path, "%s/%ld/cmdline", proc_path, procs[i].PID);
-		if(access(proc_stat_path, F_OK) == 0) //ÆÄÀÏÀÌ Á¸ÀçÇÒ ¶§¸¸ ¿­±â
-			get_proc_stat(proc_stat_path, i); //proc/pid/statÀÇ Á¤º¸¸¦ ¾ò´Â´Ù.
-		if(access(proc_status_path, F_OK) == 0) //ÆÄÀÏÀÌ Á¸ÀçÇÒ ¶§¸¸ ¿­±â
-			get_proc_status(proc_status_path, i); //proc/pid/statusÀÇ Á¤º¸¸¦ ¾ò´Â´Ù.
+		if(access(proc_stat_path, F_OK) == 0) //íŒŒì¼ì´ ì¡´ì¬í•  ë•Œë§Œ ì—´ê¸°
+			get_proc_stat(proc_stat_path, i); //proc/pid/statì˜ ì •ë³´ë¥¼ ì–»ëŠ”ë‹¤.
+		if(access(proc_status_path, F_OK) == 0) //íŒŒì¼ì´ ì¡´ì¬í•  ë•Œë§Œ ì—´ê¸°
+			get_proc_status(proc_status_path, i); //proc/pid/statusì˜ ì •ë³´ë¥¼ ì–»ëŠ”ë‹¤.
 		if(option_c && access(proc_cmdline_path, F_OK) == 0) get_cmdline(proc_cmdline_path, i);
 	}
 	closedir(proc_dir);
 }
 
 
-void sort_by_cpu() { //%CPU¼øÀ¸·Î Á¤·Ä
+void sort_by_cpu() { //%CPUìˆœìœ¼ë¡œ ì •ë ¬
 	for(int i = 0; i < tasks-1; i++) {
 		int mnum = i;
 		for(int j = i+1; j < tasks; j++) {
 			if(procs[mnum].CPU < procs[j].CPU) {
 				mnum = j;
 			}
-			else if(procs[mnum].CPU == procs[j].CPU) { //»ç¿ë·®ÀÌ °°À» °æ¿ì PID°¡ ÀÛÀº ¼øÀ¸·Î Á¤·Ä
+			else if(procs[mnum].CPU == procs[j].CPU) { //ì‚¬ìš©ëŸ‰ì´ ê°™ì„ ê²½ìš° PIDê°€ ì‘ì€ ìˆœìœ¼ë¡œ ì •ë ¬
 				if(procs[mnum].PID > procs[j].PID) mnum = j;
 			}
 		}
@@ -461,7 +461,7 @@ void sort_by_cpu() { //%CPU¼øÀ¸·Î Á¤·Ä
 	}
 }
 
-void sort_by_time() { //TIME+¼øÀ¸·Î Á¤·Ä
+void sort_by_time() { //TIME+ìˆœìœ¼ë¡œ ì •ë ¬
 	for(int i = 0; i < tasks-1; i++) {
 		int mnum = i;
 		for(int j = i+1; j < tasks; j++) {
@@ -476,7 +476,7 @@ void sort_by_time() { //TIME+¼øÀ¸·Î Á¤·Ä
 	}
 }
 
-void sort_by_mem() { //%MEM¼øÀ¸·Î Á¤·Ä
+void sort_by_mem() { //%MEMìˆœìœ¼ë¡œ ì •ë ¬
 	for(int i = 0; i < tasks-1; i++) {
 		int mnum = i;
 		for(int j = i+1; j < tasks; j++) {
@@ -491,14 +491,14 @@ void sort_by_mem() { //%MEM¼øÀ¸·Î Á¤·Ä
 	}
 }
 
-void get_data() {//µ¥ÀÌÅÍ¸¦ ÀĞ¾î¿À´Â ÇÔ¼ö
+void get_data() {//ë°ì´í„°ë¥¼ ì½ì–´ì˜¤ëŠ” í•¨ìˆ˜
 	tasks = 0, run = 0, slp = 0, stop = 0, zombie = 0;
 	FILE* fp;
-	struct tm *t; //¼­¹ö½Ã°£ ºÒ·¯¿Ã
+	struct tm *t; //ì„œë²„ì‹œê°„ ë¶ˆëŸ¬ì˜¬
 	time_t tim = time(NULL);
 	t = localtime(&tim);
-	int user = get_user(); //user ¼ö ÀĞ±â
-	long long uptime = get_uptime(); //uptime ÀĞ±â
+	int user = get_user(); //user ìˆ˜ ì½ê¸°
+	long long uptime = get_uptime(); //uptime ì½ê¸°
 	int uptime_h = uptime / 3600;
 	int uptime_m = (uptime - (uptime_h * 3600)) / 60;
 	char loadavg[15];
@@ -514,7 +514,7 @@ void get_data() {//µ¥ÀÌÅÍ¸¦ ÀĞ¾î¿À´Â ÇÔ¼ö
 	}
 
 	memset(result, '\0', sizeof(result));
-	//head ÀúÀå
+	//head ì €ì¥
 	if(!uptime_line) {
 		sprintf(result[print_row++], "top - %02d:%02d:%02d up  %2d:%02d,%3d user,  load average: %s", t->tm_hour, t->tm_min, t->tm_sec, uptime_h, uptime_m, user, loadavg);
 	}
@@ -527,8 +527,8 @@ void get_data() {//µ¥ÀÌÅÍ¸¦ ÀĞ¾î¿À´Â ÇÔ¼ö
 			"PID", "USER", "PR", "NI", "VIRT", "RES", "SHR", 'S', "%CPU", "%MEM", "TIME+", "COMMAND", blank);
 }
 
-bool ispid(int pid) { //Ãâ·ÂÇØ¾ßÇÏ´Â pidÀÎÁö ÆÇ´Ü
-	if(special_pid == 0) return true; //Ãâ·ÂÇØ¾ßÇÏ´Â pidÀÇ ¼ö°¡ 0ÀÎ °æ¿ì Ãâ·Â
+bool ispid(int pid) { //ì¶œë ¥í•´ì•¼í•˜ëŠ” pidì¸ì§€ íŒë‹¨
+	if(special_pid == 0) return true; //ì¶œë ¥í•´ì•¼í•˜ëŠ” pidì˜ ìˆ˜ê°€ 0ì¸ ê²½ìš° ì¶œë ¥
 	bool ret = false;
 	for(int i = 0; i < special_pid; i++) {
 		if(pids[i] == pid) {
@@ -539,8 +539,8 @@ bool ispid(int pid) { //Ãâ·ÂÇØ¾ßÇÏ´Â pidÀÎÁö ÆÇ´Ü
 	return ret;
 }
 
-bool isuser(char* str) { //Ãâ·ÂÇØ¾ßÇÏ´Â userÀÎÁö ÆÇ´Ü
-	if(special_user == 0) return true; //Ãâ·ÂÇØ¾ßÇÏ´Â userÀÇ ¼ö°¡ 0ÀÎ °æ¿ì Ãâ·Â
+bool isuser(char* str) { //ì¶œë ¥í•´ì•¼í•˜ëŠ” userì¸ì§€ íŒë‹¨
+	if(special_user == 0) return true; //ì¶œë ¥í•´ì•¼í•˜ëŠ” userì˜ ìˆ˜ê°€ 0ì¸ ê²½ìš° ì¶œë ¥
 	bool ret = false;
 	if(!strcmp(users, str)) {
 		ret = true;
@@ -549,17 +549,17 @@ bool isuser(char* str) { //Ãâ·ÂÇØ¾ßÇÏ´Â userÀÎÁö ÆÇ´Ü
 	return ret;
 }
 
-void print_1() { //³ª¿­¸ğµå°¡ ¾Æ´Ò ¶§ °á°ú¸¦ Ãâ·ÂÇÏ´Â ÇÔ¼ö
-	//ÅÍ¹Ì³Î Å©±â ±¸ÇÏ±â
+void print_1() { //ë‚˜ì—´ëª¨ë“œê°€ ì•„ë‹ ë•Œ ê²°ê³¼ë¥¼ ì¶œë ¥í•˜ëŠ” í•¨ìˆ˜
+	//í„°ë¯¸ë„ í¬ê¸° êµ¬í•˜ê¸°
 	if(ioctl(0, TIOCGWINSZ, (char*)&win) < 0) {
 		fprintf(stderr, "ioctl error\n");
 		exit(1);
 	}
 
-	char tm[8]; //TIME ¹®ÀÚ¿­ ÀúÀåÇÔ¼ö
+	char tm[8]; //TIME ë¬¸ìì—´ ì €ì¥í•¨ìˆ˜
 	for(int i = start_row; i < tasks; i++) {
 		if(option_i && procs[i].CPU < 0.1) continue;
-		memset(tm, 0, sizeof(tm));//TIMEÀ» ¹®ÀÚ¿­·Î ³ªÅ¸³»±â
+		memset(tm, 0, sizeof(tm));//TIMEì„ ë¬¸ìì—´ë¡œ ë‚˜íƒ€ë‚´ê¸°
 		int min = procs[i].TIME / 6000;
 		int sec = (procs[i].TIME - (min *6000)) / 100;
 		int rest = (procs[i].TIME - (min *6000) - (sec * 100));
@@ -567,17 +567,17 @@ void print_1() { //³ª¿­¸ğµå°¡ ¾Æ´Ò ¶§ °á°ú¸¦ Ãâ·ÂÇÏ´Â ÇÔ¼ö
 		char username[MAX];
 		memcpy(username, procs[i].USER, MAX);
 		if(username[7] != '\0') {
-			username[7] = '+'; //ÀÌ¸§ÀÌ ³Ê¹« ±ä °æ¿ì µÚ¿¡ '+'·Î Ç¥½Ã
+			username[7] = '+'; //ì´ë¦„ì´ ë„ˆë¬´ ê¸´ ê²½ìš° ë’¤ì— '+'ë¡œ í‘œì‹œ
 			memset(username + 8, '\0', MAX - 8);
 		}
-		if(ispid(procs[i].PID) && isuser(procs[i].USER)) {//Ãâ·ÂÇÏ°íÀÚ ÇÏ´Â pid¸¸ Ãâ·Â
+		if(ispid(procs[i].PID) && isuser(procs[i].USER)) {//ì¶œë ¥í•˜ê³ ì í•˜ëŠ” pidë§Œ ì¶œë ¥
 			snprintf(result[print_row++], win.ws_col, "%7ld %-8s %3s %3d %7lld %6lld %6lld %c %4.1lf %4.1lf   %7s %s", 
 					procs[i].PID, username, procs[i].PR, procs[i].NI, procs[i].VIRT, procs[i].RES, 
 					procs[i].SHR, procs[i].S, procs[i].CPU, procs[i].MEM, tm, procs[i].COMMAND);
 		}
 	}
 
-	//³»¿ë Ãâ·Â
+	//ë‚´ìš© ì¶œë ¥
 	if(!uptime_line) {
 		for(int i = 0; i < 6; i++)
 			mvprintw(i, 0, "%s", result[i]);
@@ -599,19 +599,19 @@ void print_1() { //³ª¿­¸ğµå°¡ ¾Æ´Ò ¶§ °á°ú¸¦ Ãâ·ÂÇÏ´Â ÇÔ¼ö
 }
 
 
-void print_2() { //³ª¿­ ¸ğµå °á°ú¸¦ Ãâ·ÂÇÏ´Â ÇÔ¼ö
+void print_2() { //ë‚˜ì—´ ëª¨ë“œ ê²°ê³¼ë¥¼ ì¶œë ¥í•˜ëŠ” í•¨ìˆ˜
 	printf("\n");
-	//ÅÍ¹Ì³Î Å©±â ±¸ÇÏ±â
+	//í„°ë¯¸ë„ í¬ê¸° êµ¬í•˜ê¸°
 	if(ioctl(0, TIOCGWINSZ, (char*)&win) < 0) {
 		fprintf(stderr, "ioctl error\n");
 		exit(1);
 	}
 
 
-	char tm[8]; //TIME ¹®ÀÚ¿­ ÀúÀåÇÔ¼ö
+	char tm[8]; //TIME ë¬¸ìì—´ ì €ì¥í•¨ìˆ˜
 	for(int i = start_row; i < tasks; i++) {
 		if(option_i && procs[i].CPU < 0.1) continue;
-		memset(tm, 0, sizeof(tm));//TIMEÀ» ¹®ÀÚ¿­·Î ³ªÅ¸³»±â
+		memset(tm, 0, sizeof(tm));//TIMEì„ ë¬¸ìì—´ë¡œ ë‚˜íƒ€ë‚´ê¸°
 		int min = procs[i].TIME / 6000;
 		int sec = (procs[i].TIME - (min *6000)) / 100;
 		int rest = (procs[i].TIME - (min *6000) - (sec * 100));
@@ -619,49 +619,49 @@ void print_2() { //³ª¿­ ¸ğµå °á°ú¸¦ Ãâ·ÂÇÏ´Â ÇÔ¼ö
 		char username[MAX];
 		memcpy(username, procs[i].USER, MAX);
 		if(username[7] != '\0') {
-			username[7] = '+'; //ÀÌ¸§ÀÌ ³Ê¹« ±ä °æ¿ì µÚ¿¡ '+'·Î Ç¥½Ã
+			username[7] = '+'; //ì´ë¦„ì´ ë„ˆë¬´ ê¸´ ê²½ìš° ë’¤ì— '+'ë¡œ í‘œì‹œ
 			memset(username + 8, '\0', MAX - 8);
 		}
-		if(ispid(procs[i].PID) && isuser(procs[i].USER)) {//Ãâ·ÂÇÏ°íÀÚ ÇÏ´Â pid¸¸ Ãâ·Â
+		if(ispid(procs[i].PID) && isuser(procs[i].USER)) {//ì¶œë ¥í•˜ê³ ì í•˜ëŠ” pidë§Œ ì¶œë ¥
 			snprintf(result[print_row++], win.ws_col, "%7ld %-8s %3s %3d %7lld %6lld %6lld %c %4.1lf %4.1lf   %7s %s", 
 					procs[i].PID, username, procs[i].PR, procs[i].NI, procs[i].VIRT, procs[i].RES, 
 					procs[i].SHR, procs[i].S, procs[i].CPU, procs[i].MEM, tm, procs[i].COMMAND);
 		}
 	}
 
-	//³»¿ë Ãâ·Â
+	//ë‚´ìš© ì¶œë ¥
 	for(int i = 0; i < print_row; i++)
 		printf("%s\n", result[i]);
 }
 
-void operation_d() { //d¿É¼ÇÀ» ¼öÇàÇÏ´Â ÇÔ¼ö
-	alarm(0); //alarm Ãë¼Ò
+void operation_d() { //dì˜µì…˜ì„ ìˆ˜í–‰í•˜ëŠ” í•¨ìˆ˜
+	alarm(0); //alarm ì·¨ì†Œ
 	char str[MAX];
 	memset(str, 0, MAX);
 	int idx = 0;
 	int c;
 	int chk = 0;
-	if(!uptime_line) { //uptime_lineÀÌ ÀÖ´Â °æ¿ì
+	if(!uptime_line) { //uptime_lineì´ ìˆëŠ” ê²½ìš°
 		mvaddstr(5, 0, blank2);
 		mvaddstr(5, 0, "Change delay from 3.0 to "); 
 	}
-	else { //uptime_lineÀÌ ¾ø´Â °æ¿ì
+	else { //uptime_lineì´ ì—†ëŠ” ê²½ìš°
 		mvaddstr(4, 0, blank2);
 		mvaddstr(4, 0, "Change delay from 3.0 to ");
 	}
 	while((c = getch()) != '\n') {
-		if(c == 8) { //backspaceÀÎ °æ¿ì
+		if(c == 8) { //backspaceì¸ ê²½ìš°
 			delch();
 			continue;
 		}
-		if(c == 27) { //esc¸¦ ´©¸¥ °æ¿ì
+		if(c == 27) { //escë¥¼ ëˆ„ë¥¸ ê²½ìš°
 			chk = 1;
 			break;
 		}
 		if(c != -1)
 			str[idx++] = c;
 	}
-	if(!chk) {//esc¸¦ ´©¸¥ °æ¿ì Ãë¼Ò
+	if(!chk) {//escë¥¼ ëˆ„ë¥¸ ê²½ìš° ì·¨ì†Œ
 		delay = atoi(str);
 	}
 	alarm(3);
@@ -669,38 +669,38 @@ void operation_d() { //d¿É¼ÇÀ» ¼öÇàÇÏ´Â ÇÔ¼ö
 }
 
 void operation_u() {
-	alarm(0); //alarm Ãë¼Ò
+	alarm(0); //alarm ì·¨ì†Œ
 	char str[MAX];
 	memset(str, 0, MAX);
 	int idx = 0;
 	char c;
 	int chk = 0;
-	if(!uptime_line) { //uptime_lineÀÌ ÀÖ´Â °æ¿ì
+	if(!uptime_line) { //uptime_lineì´ ìˆëŠ” ê²½ìš°
 		mvaddstr(5, 0, blank2);
 		mvaddstr(5, 0, "Which user (blank for all) "); 
 	}
-	else { //uptime_lineÀÌ ¾ø´Â °æ¿ì
+	else { //uptime_lineì´ ì—†ëŠ” ê²½ìš°
 		mvaddstr(4, 0, blank2);
 		mvaddstr(4, 0, "Which user (blank for all) ");
 	}
 	char tmp[10];
 	while((c = getch()) != '\n') {
-		if(c == 8) { //backspaceÀÎ °æ¿ì
+		if(c == 8) { //backspaceì¸ ê²½ìš°
 			idx--;
 			delch();
 			continue;
 		}
-		if(c == 27) { //esc¸¦ ´©¸¥ °æ¿ì
+		if(c == 27) { //escë¥¼ ëˆ„ë¥¸ ê²½ìš°
 			chk = 1;
 			break;
 		}
 		if(c != -1)
 			str[idx++] = c;
 	}
-	if(!chk) { //esc¸¦ ´©¸£Áö ¾Ê¾ÒÀ» ¶§
-		strncpy(users, str, MAX); //Ãâ·ÂÇÏ°íÀÚ ÇÏ´Â user¿¡ º¹»ç
+	if(!chk) { //escë¥¼ ëˆ„ë¥´ì§€ ì•Šì•˜ì„ ë•Œ
+		strncpy(users, str, MAX); //ì¶œë ¥í•˜ê³ ì í•˜ëŠ” userì— ë³µì‚¬
 		mvaddstr(5, 0, users);
-		if(idx == 0) //¾Æ¹«°Íµµ ÀÔ·ÂÀ» ¹ŞÁö ¾ÊÀº °æ¿ì
+		if(idx == 0) //ì•„ë¬´ê²ƒë„ ì…ë ¥ì„ ë°›ì§€ ì•Šì€ ê²½ìš°
 			special_user = 0;
 		else
 			special_user = 1;
@@ -711,8 +711,8 @@ void operation_u() {
 }
 
 
-void operation_k() { //k¿É¼ÇÀ» ¼öÇàÇÏ´Â ÇÔ¼ö
-	alarm(0); //alarm Ãë¼Ò
+void operation_k() { //kì˜µì…˜ì„ ìˆ˜í–‰í•˜ëŠ” í•¨ìˆ˜
+	alarm(0); //alarm ì·¨ì†Œ
 	char str[MAX];
 	char sig[10];
 	char tmp[MAX];
@@ -724,59 +724,59 @@ void operation_k() { //k¿É¼ÇÀ» ¼öÇàÇÏ´Â ÇÔ¼ö
 	int chk = 0;
 	memset(tmp, 0, MAX);
 	sprintf(tmp, "PID to signal/kill [default pid = %ld] ", procs[0].PID);
-	if(!uptime_line) { //uptime_lineÀÌ ÀÖ´Â °æ¿ì
+	if(!uptime_line) { //uptime_lineì´ ìˆëŠ” ê²½ìš°
 		mvaddstr(5, 0, blank2);
-		mvaddstr(5, 0, tmp); //default´Â °¡Àå À§¿¡ ÀÖ´Â Process
+		mvaddstr(5, 0, tmp); //defaultëŠ” ê°€ì¥ ìœ„ì— ìˆëŠ” Process
 	}
-	else { //uptime_lineÀÌ ¾ø´Â °æ¿ì
+	else { //uptime_lineì´ ì—†ëŠ” ê²½ìš°
 		mvaddstr(4, 0, blank2);
 		mvaddstr(4, 0, tmp);
 	}
 	while((c = getch()) != '\n') {
-		if(c == 8) { //backspaceÀÎ °æ¿ì
+		if(c == 8) { //backspaceì¸ ê²½ìš°
 			idx--;
 			delch();
 			continue;
 		}
-		if(c == 27) { //esc¸¦ ´©¸¥ °æ¿ì
+		if(c == 27) { //escë¥¼ ëˆ„ë¥¸ ê²½ìš°
 			chk = 1;
 			break;
 		}
 		if(c != -1)
 			str[idx++] = c;
 	}
-	if(!chk) {//esc¸¦ ´©¸£Áö ¾ÊÀº °æ¿ì
-		if(idx == 0) //¾Æ¹«°Íµµ ÀÔ·ÂÀ» ¹ŞÁö ¾ÊÀº °æ¿ì
+	if(!chk) {//escë¥¼ ëˆ„ë¥´ì§€ ì•Šì€ ê²½ìš°
+		if(idx == 0) //ì•„ë¬´ê²ƒë„ ì…ë ¥ì„ ë°›ì§€ ì•Šì€ ê²½ìš°
 			kill_pid = procs[0].PID;
 		else
 			kill_pid = atoi(str);
 
 		memset(tmp, 0, MAX);
 		sprintf(tmp, "Send pid %d signal [15/sigterm] ", kill_pid);
-		if(!uptime_line) { //uptime_lineÀÌ ÀÖ´Â °æ¿ì
+		if(!uptime_line) { //uptime_lineì´ ìˆëŠ” ê²½ìš°
 			mvaddstr(5, 0, blank2);
 			mvaddstr(5, 0, tmp);
 		}
-		else { //uptime_lineÀÌ ¾ø´Â °æ¿ì
+		else { //uptime_lineì´ ì—†ëŠ” ê²½ìš°
 			mvaddstr(4, 0, blank2);
 			mvaddstr(4, 0, tmp);
 		}
 		idx = 0;
 		tcflush(0, TCIFLUSH);
 		while((c = getch()) != '\n') {
-			if(c == 8) { //backspaceÀÎ °æ¿ì
+			if(c == 8) { //backspaceì¸ ê²½ìš°
 				idx--;
 				delch();
 				continue;
 			}
-			if(c == 27) { //esc¸¦ ´©¸¥ °æ¿ì
+			if(c == 27) { //escë¥¼ ëˆ„ë¥¸ ê²½ìš°
 				chk = 1;
 				break;
 			}
 			if(c != -1)
 				sig[idx++] = c;
 		}
-		if(!chk) { //esc¸¦ ´©¸£Áö ¾ÊÀº °æ¿ì
+		if(!chk) { //escë¥¼ ëˆ„ë¥´ì§€ ì•Šì€ ê²½ìš°
 			int signal = 0;
 			for(int i = 0; i < idx; i++) {
 				if(isdigit(sig[i])) {
@@ -794,11 +794,11 @@ void operation_k() { //k¿É¼ÇÀ» ¼öÇàÇÏ´Â ÇÔ¼ö
 
 
 
-void start_status() { //ncurses ÃÊ±â ¼³Á¤
-	noecho(); //echo Á¦°Å
-	curs_set(0); //Ä¿¼­ ¾Èº¸ÀÌ°Ô ÇÔ
-	initscr(); //Ãâ·Â À©µµ¿ì ÃÊ±âÈ­
-	halfdelay(10); //0.1ÃÊ¸¶´Ù °»½Å
+void start_status() { //ncurses ì´ˆê¸° ì„¤ì •
+	noecho(); //echo ì œê±°
+	curs_set(0); //ì»¤ì„œ ì•ˆë³´ì´ê²Œ í•¨
+	initscr(); //ì¶œë ¥ ìœˆë„ìš° ì´ˆê¸°í™”
+	halfdelay(10); //0.1ì´ˆë§ˆë‹¤ ê°±ì‹ 
 	keypad(stdscr, true);
 }
 
@@ -823,8 +823,8 @@ int main(int argc, char **argv) {
 	}
 
 	for(int i = 12; i < MAX; i++) begin[i] = begin[i-1] + 8;
-	//ÃÊ±â ¿É¼Ç ¼³Á¤
-	signal(SIGALRM, handler); //alarm ½Ã±×³Î¿¡ µ¿ÀÛÇÒ handlerÇÔ¼ö¸¦ ¼³Á¤
+	//ì´ˆê¸° ì˜µì…˜ ì„¤ì •
+	signal(SIGALRM, handler); //alarm ì‹œê·¸ë„ì— ë™ì‘í•  handlerí•¨ìˆ˜ë¥¼ ì„¤ì •
 	option = 'P';
 	uptime_line = 0;
 	delay = 3;
@@ -837,22 +837,22 @@ int main(int argc, char **argv) {
 	kill_pid = 0;
 	memset(blank2, ' ', 70);
 
-	//½ÇÇà Àü ¿É¼Ç parsing
+	//ì‹¤í–‰ ì „ ì˜µì…˜ parsing
 	for(int i = 1; i < argc; i++) {
-		if(!strcmp(argv[i], "-n")) { //½ÇÇà È½¼ö Á¦ÇÑ¿É¼Ç
+		if(!strcmp(argv[i], "-n")) { //ì‹¤í–‰ íšŸìˆ˜ ì œí•œì˜µì…˜
 			print_max = atoi(argv[i+1]);
-			if(print_max == 0) { //¿Ã¹Ù¸£Áö ¾ÊÀº ¼ıÀÚ¸¦ ÀÔ·ÂÇÑ °æ¿ì ¿¡·¯Ã³¸® ÈÄ Á¾·á
+			if(print_max == 0) { //ì˜¬ë°”ë¥´ì§€ ì•Šì€ ìˆ«ìë¥¼ ì…ë ¥í•œ ê²½ìš° ì—ëŸ¬ì²˜ë¦¬ í›„ ì¢…ë£Œ
 				fprintf(stderr, "top: bad iterations argument '0'\n");
 				endwin();
 				exit(0);
 			}
 		}
-		if(!strcmp(argv[i], "-p")) { //Æ¯Á¤ PID¸¸ Ãâ·Â
+		if(!strcmp(argv[i], "-p")) { //íŠ¹ì • PIDë§Œ ì¶œë ¥
 			int pid = atoi(argv[i+1]);
 			pids[special_pid] = pid;
-			special_pid++; //Ãâ·Â pid °³¼ö Áõ°¡
+			special_pid++; //ì¶œë ¥ pid ê°œìˆ˜ ì¦ê°€
 		}
-		if(!strcmp(argv[i], "-b")) { //¸ğµç processµéÀ» ³ª¿­ÇÏ±â¸¸ ÇÏ´Â °æ¿ì
+		if(!strcmp(argv[i], "-b")) { //ëª¨ë“  processë“¤ì„ ë‚˜ì—´í•˜ê¸°ë§Œ í•˜ëŠ” ê²½ìš°
 			option_b = 1;
 		}
 	}
@@ -869,7 +869,7 @@ int main(int argc, char **argv) {
 	}
 	print_cnt = 1;
 	alarm(delay);
-	//3ÃÊ¸¶´Ù °»½Å
+	//3ì´ˆë§ˆë‹¤ ê°±ì‹ 
 	while(1) {
 		if(ioctl(0, TIOCGWINSZ, (char*)&win) < 0) {
 			fprintf(stderr, "ioctl error\n");
@@ -881,23 +881,23 @@ int main(int argc, char **argv) {
 		if(print_max != -1 && print_max == print_cnt) break;
 		int input = getch();
 		int sum = input;
-		if(input == 'q') { //Á¾·á
+		if(input == 'q') { //ì¢…ë£Œ
 			break;
 		}
-		else if(input == 'P') { //CPU¼ø Á¤·Ä
+		else if(input == 'P') { //CPUìˆœ ì •ë ¬
 			option = 'P';
 			raise(SIGALRM);
 		}
-		else if(input == 'M') { //MEM¼ø Á¤·Ä
+		else if(input == 'M') { //MEMìˆœ ì •ë ¬
 			option = 'M';
 			raise(SIGALRM);
 		}
-		else if(input == 'T') { //TIME¼ø Á¤·Ä
+		else if(input == 'T') { //TIMEìˆœ ì •ë ¬
 			option = 'T';
 			raise(SIGALRM);
 		}
 
-		else if(input == 'l') { //uptime_line¼û±è/Ç¥½Ã
+		else if(input == 'l') { //uptime_lineìˆ¨ê¹€/í‘œì‹œ
 			if(uptime_line)
 				uptime_line = 0;
 			else
@@ -905,11 +905,11 @@ int main(int argc, char **argv) {
 			raise(SIGALRM);
 		}
 
-		else if(input == ' ' || input == 27) { //space³ª esc¸¦ ´©¸¦ °æ¿ì refresh
+		else if(input == ' ' || input == 27) { //spaceë‚˜ escë¥¼ ëˆ„ë¥¼ ê²½ìš° refresh
 			raise(SIGALRM);
 		}
 
-		else if(input == 'c') { //¸í·É ÀÎÀÚ Ç¥½Ã/ ºñÇ¥½Ã
+		else if(input == 'c') { //ëª…ë ¹ ì¸ì í‘œì‹œ/ ë¹„í‘œì‹œ
 			if(option_c) option_c = 0;
 			else option_c = 1;
 			raise(SIGALRM);
@@ -921,34 +921,34 @@ int main(int argc, char **argv) {
 			raise(SIGALRM);
 		}
 
-		else if(input == 'd') { //delay¸¦ ¼³Á¤
+		else if(input == 'd') { //delayë¥¼ ì„¤ì •
 			operation_d();
 		}
 
-		else if(input == 'u' || input == 'U') { //Æ¯Á¤ user ¼³Á¤
+		else if(input == 'u' || input == 'U') { //íŠ¹ì • user ì„¤ì •
 			operation_u();
 		}
 
-		else if(input == 'k') { //killÇÏ·Á´Â pid Ãâ·Â
+		else if(input == 'k') { //killí•˜ë ¤ëŠ” pid ì¶œë ¥
 			operation_k();
 		}
-		else { //¹æÇâÅ°¸¦ ÀÔ·ÂÇÏ´Â °æ¿ì
-			if(sum == KEY_UP) {//À§ ¹æÇâÅ°ÀÎ °æ¿ì
+		else { //ë°©í–¥í‚¤ë¥¼ ì…ë ¥í•˜ëŠ” ê²½ìš°
+			if(sum == KEY_UP) {//ìœ„ ë°©í–¥í‚¤ì¸ ê²½ìš°
 				start_row--;
 				if(start_row < 0) start_row = 0;
 				raise(SIGALRM);
 			}
-			else if(sum == KEY_DOWN) { //¾Æ·¡ ¹æÇâÅ°ÀÎ °æ¿ì
+			else if(sum == KEY_DOWN) { //ì•„ë˜ ë°©í–¥í‚¤ì¸ ê²½ìš°
 				start_row++;
 				if(start_row == tasks) start_row = tasks-1;
 				raise(SIGALRM);
 			}
-			else if(sum == KEY_LEFT) { //¿ŞÂÊ ¹æÇâÅ°ÀÎ °æ¿ì
+			else if(sum == KEY_LEFT) { //ì™¼ìª½ ë°©í–¥í‚¤ì¸ ê²½ìš°
 				start_col--;
 				if(start_col < 0) start_col = 0;
 				raise(SIGALRM);
 			}
-			else if(sum == KEY_RIGHT) { //¿À¸¥ÂÊ ¹æÇâÅ°ÀÎ °æ¿ì
+			else if(sum == KEY_RIGHT) { //ì˜¤ë¥¸ìª½ ë°©í–¥í‚¤ì¸ ê²½ìš°
 				start_col++;
 				raise(SIGALRM);
 			}
