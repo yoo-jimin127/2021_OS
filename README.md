@@ -7,3 +7,4 @@
 - [스케줄링 관련 시스템 호출 및 고정 우선순위 지정](https://jeongchul.tistory.com/95)
 - [프로세스의 nice 값을 조정해 우선순위 차등 부여](https://wiseworld.tistory.com/64)
 - [nice 명령어 사용](https://jhnyang.tistory.com/394)
+- [스케줄링 정책 관련 문서](http://www.iamroot.org/xe/index.php?mid=Programming&document_srl=14564)
