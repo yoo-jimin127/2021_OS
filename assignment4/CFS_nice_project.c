@@ -61,7 +61,7 @@ int main (void) {
 				}
 
 				for (long long a = 0; a < 100000; a++) {
-					for (long long b = 0; b < 20000; b++) {
+					for (long long b = 0; b < 50000; b++) {
 						num = a * b;
 					}
 				}
@@ -82,7 +82,7 @@ int main (void) {
 				//printf("b\n");
 
 				for (long long a = 0; a < 100000; a++) {
-					for (long long b = 0; b < 20100; b++) {
+					for (long long b = 0; b < 50005; b++) {
 						num = a * b;
 					}
 				}
@@ -103,7 +103,7 @@ int main (void) {
 				//printf("c\n");
 
 				for (long long a = 0; a < 100000; a++) {
-					for (long long b = 0; b < 20200; b++) {
+					for (long long b = 0; b < 50010; b++) {
 						num = a * b;
 					}
 				} 
@@ -121,3 +121,4 @@ int main (void) {
 	
 	return 0;
 }
+
