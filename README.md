@@ -30,11 +30,19 @@
 ------
 
 ### project 2
-
+- 리눅스 명령어 ps, top, lscpu와 같은 역할을 수행하는 명령어 myps, mytop, mylscpu 구현
 ------
 
 ### project 3
-
+- 시스템 콜 함수 추가 구현
+1. ```/usr/src/linux/linux-5.11.22/arch/x86/entry/syscalls``` 디렉토리로 이동 후 ```syscall_xx.tbl``` 파일 편집
+2. 시스템 콜 테이블 등록
+3. ```/usr/src/linux/linux-5.11.22/include/linux``` 디렉토리로 이동 후 ```syscalls.h```을 vi 편집기로 열기
+4. ```asmlinkage```를 앞에 붙여 어셈블리 코드에서도 C 함수 호출이 가능하도록 시스템콜 헤더 파일에 등록
+5. ```/usr/src/linux/linux-5.11.22/kernel``` 디렉토리로 이동 후 추가할 시스템 콜의 구현 파일 편집
+6. Makefile 편집
+7. 커널 소스 디렉토리로 이동해 새로 컴파일 후 재부팅, revision 사이 충돌 발생을 막기 위해 다른 값 입력해 컴파일 실시
+8. ```dmesg``` 명령어 통해 커널 로그 출력해 추가된 시스템콜 함수 정상 실행 확인
 ------
 
 ### project 4
