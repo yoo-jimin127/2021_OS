@@ -59,3 +59,7 @@
   - [스케줄링 정책 관련 문서](http://www.iamroot.org/xe/index.php?mid=Programming&document_srl=14564)
   
 ------
+
+### project 5
+- 가상메모리 관리 기법의 하나인 <페이지 교체 기법> 중 OPT, FIFO, LRU, Second-Chance를 구현하고 동작 과정을 보여주는 시뮬레이터 구현
+  - [페이지 교체 기법 알고리즘](https://m.blog.naver.com/xowns4817/221226671491)
