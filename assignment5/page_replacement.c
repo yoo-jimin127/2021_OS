@@ -144,7 +144,8 @@ void FIFO_algorithm(int frame_cnt, int element_cnt, int *refer_buf) {
 	int *frame_check = malloc(sizeof(int) * frame_cnt); //frame이 비었는지 확인하는 배열
 	char *fault_check = malloc(sizeof(char) * element_cnt); //page fault의 발생여부를 저장하는 배열
 	int pagefault_cnt = 0; //page fault counter
-	int currIdx = 0;
+	int idxCnt = 0; // 누적 인덱스
+	int currIdx = 0; //page reference string을 삽입하는 인덱스
 
 	for (int i = 0; i < frame_cnt; i++) {
 		frame_buf[i] = 0; //frame_buf를 0으로 초기화
@@ -161,20 +162,27 @@ void FIFO_algorithm(int frame_cnt, int element_cnt, int *refer_buf) {
 				frame_check[j]++; //해당 인덱스의 frame_check 값 + 1 (가장 오래된 frame 찾기 위함)
 				pagefault_cnt++;
 				fault_check[i] = 'F';
-				currIdx++;
+				idxCnt++;
+				//printf("idxCnt : %d\n", idxCnt);
 				break;
 			}
 
-			if (frame_check[j] > 1) {//frame이 비어있지 않은 경우
-				frame_buf[j] = refer_buf[i];
-				frame_check[j]++;
+			if (idxCnt >= frame_cnt) {//frame이 비어있지 않은 경우
+				if (((idxCnt - 1) % 3) == 0) currIdx = 0;
+				else if (((idxCnt - 1) % 3) == 1) currIdx = 1;
+				else if (((idxCnt - 1) % 3) == 2) currIdx = 2;
+				
+				frame_buf[currIdx] = refer_buf[i];
+				frame_check[currIdx]++;
 
 				pagefault_cnt++;
 				fault_check[i] = 'F';
+				idxCnt++;
 				break;
 			}
 		}
 		printf("%d\t\t%d[%d]\t%d[%d]\t%d[%d]\t%c\n", i+1, frame_buf[0], frame_check[0], frame_buf[1], frame_check[1], frame_buf[2], frame_check[2], fault_check[i]);
+		//printf("page fault: %d\n", pagefault_cnt);
 	}
 }
 
