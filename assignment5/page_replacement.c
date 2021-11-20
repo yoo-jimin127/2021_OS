@@ -85,15 +85,15 @@ int main (void) {
 void OPT_algorithm(int frame_cnt, int element_cnt, int *refer_buf) {
 	int check[31] = { 0, };
 	int pagefault_cnt = 0; // page fault counter
-	printf("element_cnt : %d\n", element_cnt);
 	
-	bool is_refer = false;
 	for (int i = 0; i < element_cnt; i++) {
-		
+		bool is_refer = false; //reference string이 해당 frame에 존재하는지
+	
 		// 해당 frame에 page의 존재 여부 확인
 		for (int j = 0; j < frame_cnt; j++) {
 			if (refer_buf[i] == check[j]) {
 				is_refer = true; 
+				pagefault_cnt++;
 				break;
 			}
 		}
@@ -104,6 +104,7 @@ void OPT_algorithm(int frame_cnt, int element_cnt, int *refer_buf) {
 			if(!check[j]) {
 				check[j] = refer_buf[i];
 				is_refer = true;
+				pagefault_cnt++;
 				break;
 			}
 		}
@@ -127,14 +128,54 @@ void OPT_algorithm(int frame_cnt, int element_cnt, int *refer_buf) {
 				deviceIdx = lastUsedIdx;
 			}
 		}
-		
+
+		pagefault_cnt++;
+		check[idx] = refer_buf[i];
+		printf("%d\t\t%d\t%d\t%d\tF\n", i, check[0], check[1], check[2]);
 	}
+
+	printf("Number of page faults : %d times\n", pagefault_cnt);
 
 }
 
 /* ------ FIFO altorithm ------*/
 void FIFO_algorithm(int frame_cnt, int element_cnt, int *refer_buf) {
+	int *frame_buf = malloc(sizeof(int) * frame_cnt); //frame buf 동적할당
+	int *frame_check = malloc(sizeof(int) * frame_cnt); //frame이 비었는지 확인하는 배열
+	char *fault_check = malloc(sizeof(char) * element_cnt); //page fault의 발생여부를 저장하는 배열
+	int pagefault_cnt = 0; //page fault counter
+	int currIdx = 0;
 
+	for (int i = 0; i < frame_cnt; i++) {
+		frame_buf[i] = 0; //frame_buf를 0으로 초기화
+		frame_check[i] = 0; //비어있음을 의미하도록 frame_check의 모든 원소를 0으로 초기화
+	}
+	memset(fault_check, ' ', sizeof(fault_check)); //fault_check 배열 초기화
+
+	for (int i = 0; i < element_cnt; i++) {
+		for (int j = 0; j < frame_cnt; j++) {
+			if (frame_buf[j] == refer_buf[i]) break; //hit가 발생하는 경우
+
+			if (frame_check[j] == 0) { //frame이 비어있는 경우
+				frame_buf[j] = refer_buf[i]; //해당 frame에 string insert 
+				frame_check[j]++; //해당 인덱스의 frame_check 값 + 1 (가장 오래된 frame 찾기 위함)
+				pagefault_cnt++;
+				fault_check[i] = 'F';
+				currIdx++;
+				break;
+			}
+
+			if (frame_check[j] > 1) {//frame이 비어있지 않은 경우
+				frame_buf[j] = refer_buf[i];
+				frame_check[j]++;
+
+				pagefault_cnt++;
+				fault_check[i] = 'F';
+				break;
+			}
+		}
+		printf("%d\t\t%d[%d]\t%d[%d]\t%d[%d]\t%c\n", i+1, frame_buf[0], frame_check[0], frame_buf[1], frame_check[1], frame_buf[2], frame_check[2], fault_check[i]);
+	}
 }
 
 /* ------ LRU altorithm ------*/
