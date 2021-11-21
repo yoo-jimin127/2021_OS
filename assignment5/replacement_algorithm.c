@@ -117,20 +117,12 @@ void OPT_algorithm(int frame_cnt, int element_cnt, int *refer_buf) {
 			else { //page fault가 발생하지 않는 경우
 				sprintf(level_print,"%d\t\t", i+1);
 				
-				if (frame_buf[0] == -1) sprintf(tmp_print, " \t");
-				else sprintf(tmp_print, "%d\t", frame_buf[0]);
-				strcat(level_print, tmp_print);
-				memset(tmp_print, 0, sizeof(tmp_print));
-				
-				if (frame_buf[1] == -1) sprintf(tmp_print, " \t");
-				else sprintf(tmp_print, "%d\t", frame_buf[1]);
-				strcat(level_print, tmp_print);
-				memset(tmp_print, 0, sizeof(tmp_print));
-				
-				if (frame_buf[2] == -1) sprintf(tmp_print, " \t");
-				else sprintf(tmp_print, "%d\t", frame_buf[2]);
-				strcat(level_print, tmp_print);
-				memset(tmp_print, 0, sizeof(tmp_print));
+				for (int l = 0; l < frame_cnt; l++) {
+					if (frame_buf[l] == -1) sprintf(tmp_print, " \t");
+					else sprintf(tmp_print, "%d\t", frame_buf[l]);
+					strcat(level_print, tmp_print);
+					memset(tmp_print, 0, sizeof(tmp_print));		
+				}
 				
 				sprintf(tmp_print, "%c", fault_check[i]);
 				strcat(level_print, tmp_print);
@@ -143,21 +135,13 @@ void OPT_algorithm(int frame_cnt, int element_cnt, int *refer_buf) {
 			if(CheckExist(frame_buf, frame_cnt, refer_buf[i]) != -1) { //빈 frame이 존재하지 않는 경우
 				sprintf(level_print,"%d\t\t", i+1);
 				
-				if (frame_buf[0] == -1) sprintf(tmp_print, " \t");
-				else sprintf(tmp_print, "%d\t", frame_buf[0]);
-				strcat(level_print, tmp_print);
-				memset(tmp_print, 0, sizeof(tmp_print));
-				
-				if (frame_buf[1] == -1) sprintf(tmp_print, " \t");
-				else sprintf(tmp_print, "%d\t", frame_buf[1]);
-				strcat(level_print, tmp_print);
-				memset(tmp_print, 0, sizeof(tmp_print));
-				
-				if (frame_buf[2] == -1) sprintf(tmp_print, " \t");
-				else sprintf(tmp_print, "%d\t", frame_buf[2]);
-				strcat(level_print, tmp_print);
-				memset(tmp_print, 0, sizeof(tmp_print));
-				
+				for (int l = 0; l < frame_cnt; l++) {
+					if (frame_buf[l] == -1) sprintf(tmp_print, " \t");
+					else sprintf(tmp_print, "%d\t", frame_buf[l]);
+					strcat(level_print, tmp_print);
+					memset(tmp_print, 0, sizeof(tmp_print));
+				}
+
 				sprintf(tmp_print, "%c", fault_check[i]);
 				strcat(level_print, tmp_print);
 				printf("%s\n", level_print);
@@ -180,20 +164,12 @@ void OPT_algorithm(int frame_cnt, int element_cnt, int *refer_buf) {
 
 		sprintf(level_print,"%d\t\t", i+1);
 
-		if (frame_buf[0] == -1) sprintf(tmp_print, " \t");
-		else sprintf(tmp_print, "%d\t", frame_buf[0]);
-		strcat(level_print, tmp_print);
-		memset(tmp_print, 0, sizeof(tmp_print));
-		
-		if (frame_buf[1] == -1) sprintf(tmp_print, " \t");
-		else sprintf(tmp_print, "%d\t", frame_buf[1]);
-		strcat(level_print, tmp_print);
-		memset(tmp_print, 0, sizeof(tmp_print));
-		
-		if (frame_buf[2] == -1) sprintf(tmp_print, " \t");
-		else sprintf(tmp_print, "%d\t", frame_buf[2]);
-		strcat(level_print, tmp_print);
-		memset(tmp_print, 0, sizeof(tmp_print));
+		for (int l = 0; l < frame_cnt; l++) {
+			if (frame_buf[l] == -1) sprintf(tmp_print, " \t");
+			else sprintf(tmp_print, "%d\t", frame_buf[l]);
+			strcat(level_print, tmp_print);
+			memset(tmp_print, 0, sizeof(tmp_print));
+		}
 
 		sprintf(tmp_print, "%c", fault_check[i]);
 		strcat(level_print, tmp_print);
@@ -231,21 +207,13 @@ void FIFO_algorithm(int frame_cnt, int element_cnt, int *refer_buf) {
 		
 		sprintf(level_print,"%d\t\t", i+1);
 		
-		if (frame_buf[0] == -1) sprintf(tmp_print, " \t");
-		else sprintf(tmp_print, "%d\t", frame_buf[0]);
-		strcat(level_print, tmp_print);
-		memset(tmp_print, 0, sizeof(tmp_print));
-		
-		if (frame_buf[1] == -1) sprintf(tmp_print, " \t");
-		else sprintf(tmp_print, "%d\t", frame_buf[1]);
-		strcat(level_print, tmp_print);
-		memset(tmp_print, 0, sizeof(tmp_print));
-		
-		if (frame_buf[2] == -1) sprintf(tmp_print, " \t");
-		else sprintf(tmp_print, "%d\t", frame_buf[2]);
-		strcat(level_print, tmp_print);
-		memset(tmp_print, 0, sizeof(tmp_print));
-		
+		for (int l = 0; l < frame_cnt; l++) {
+			if (frame_buf[l] == -1) sprintf(tmp_print, " \t");
+			else sprintf(tmp_print, "%d\t", frame_buf[l]);
+			strcat(level_print, tmp_print);
+			memset(tmp_print, 0, sizeof(tmp_print));
+		}
+
 		sprintf(tmp_print, "%c", fault_check[i]);
 		strcat(level_print, tmp_print);
 		
@@ -303,20 +271,12 @@ void LRU_algorithm(int frame_cnt, int element_cnt, int *refer_buf) {
 
 		sprintf(level_print,"%d\t\t", i+1);
 		
-		if (frame_buf[0] == -1) sprintf(tmp_print, " \t");
-		else sprintf(tmp_print, "%d\t", frame_buf[0]);
-		strcat(level_print, tmp_print);
-		memset(tmp_print, 0, sizeof(tmp_print));
-		
-		if (frame_buf[1] == -1) sprintf(tmp_print, " \t");
-		else sprintf(tmp_print, "%d\t", frame_buf[1]);
-		strcat(level_print, tmp_print);
-		memset(tmp_print, 0, sizeof(tmp_print));
-		
-		if (frame_buf[2] == -1) sprintf(tmp_print, " \t");
-		else sprintf(tmp_print, "%d\t", frame_buf[2]);
-		strcat(level_print, tmp_print);
-		memset(tmp_print, 0, sizeof(tmp_print));
+		for (int l = 0; l < frame_cnt; l++) {
+			if (frame_buf[l] == -1) sprintf(tmp_print, " \t");
+			else sprintf(tmp_print, "%d\t", frame_buf[l]);
+			strcat(level_print, tmp_print);
+			memset(tmp_print, 0, sizeof(tmp_print));
+		}
 
 		sprintf(tmp_print, "%c", fault_check[i]);	
 		strcat(level_print, tmp_print);
@@ -356,7 +316,7 @@ void SecondChance_algorithm(int frame_cnt, int element_cnt, int *refer_buf) {
 			fault_check[i] = 'F';
 		}
 
-		else if (CheckExist(frame_buf, frame_cnt, refer_buf[i]) != -1 && frame_check_bit[i] == 0) {
+		else if (CheckExist(frame_buf, frame_cnt, refer_buf[i]) != -1 && frame_check_bit[i] == 0) { //비어있지 않은 frame 중 
 			frame_check_bit[i] = 1;
 			frame_buf[currIdx] = refer_buf[i]; //currIdx에 해당 reference string을 넣음
 			currIdx = (currIdx + 1) % frame_cnt; //currIdx의 값 증가
@@ -368,21 +328,13 @@ void SecondChance_algorithm(int frame_cnt, int element_cnt, int *refer_buf) {
 	
 		sprintf(level_print,"%d\t\t", i+1);
 		
-		if (frame_buf[0] == -1) sprintf(tmp_print, " \t");
-		else sprintf(tmp_print, "%d[%d]\t", frame_buf[0], frame_check_bit[0]);
-		strcat(level_print, tmp_print);
-		memset(tmp_print, 0, sizeof(tmp_print));
-		
-		if (frame_buf[1] == -1) sprintf(tmp_print, " \t");
-		else sprintf(tmp_print, "%d[%d]\t", frame_buf[1], frame_check_bit[1]);
-		strcat(level_print, tmp_print);
-		memset(tmp_print, 0, sizeof(tmp_print));
-		
-		if (frame_buf[2] == -1) sprintf(tmp_print, " \t");
-		else sprintf(tmp_print, "%d[%d]\t", frame_buf[2], frame_check_bit[2]);
-		strcat(level_print, tmp_print);
-		memset(tmp_print, 0, sizeof(tmp_print));
-		
+		for (int l = 0; l < frame_cnt; l++) {
+			if (frame_buf[l] == -1) sprintf(tmp_print, " \t");
+			else sprintf(tmp_print, "%d[%d]\t", frame_buf[l], frame_check_bit[l]);
+			strcat(level_print, tmp_print);
+			memset(tmp_print, 0, sizeof(tmp_print));
+		}
+
 		sprintf(tmp_print, "%c", fault_check[i]);
 		strcat(level_print, tmp_print);
 		printf("%s\n", level_print);
