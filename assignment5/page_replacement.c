@@ -84,59 +84,18 @@ int main (void) {
 
 /* ------ optimal altorithm ------*/
 void OPT_algorithm(int frame_cnt, int element_cnt, int *refer_buf) {
-	int check[31] = { 0, };
-	int pagefault_cnt = 0; // page fault counter
-	
-	for (int i = 0; i < element_cnt; i++) {
-		bool is_refer = false; //reference string이 해당 frame에 존재하는지
-	
-		// 해당 frame에 page의 존재 여부 확인
-		for (int j = 0; j < frame_cnt; j++) {
-			if (refer_buf[i] == check[j]) {
-				is_refer = true; 
-				pagefault_cnt++;
-				break;
-			}
-		}
+	int *frame_buf = malloc(sizeof(int) * frame_cnt); // frame_buf 동적할당
+	char *fault_check = malloc(sizeof(char) * element_cnt); //pagefault의 발생여부를 저장하는 배열
+	char *level_print = malloc(sizeof(char) * 300); //각 단계에서의 page replacement 상태를 출력하는 메시지
+	char *tmp_print = malloc(sizeof(char) * 10); //문자열 저장을 위한 임시 버퍼
 
-		if (is_refer) continue; //해당 프레임에 reference string 요소가 있으면 continue
+	int pagefault_cnt = 0; //page fault counter
+	int currIdx = 0; //page reference string을 삽입하는 인덱스
 
-		for (int j = 0; j < frame_cnt; j++) {
-			if(!check[j]) {
-				check[j] = refer_buf[i];
-				is_refer = true;
-				pagefault_cnt++;
-				break;
-			}
-		}
-
-		if (is_refer) continue; //해당 프레임에 reference string 요소가 있으면 continue
-
-		int idx, deviceIdx = -1;
-
-		for (int j = 0; j < frame_cnt; j++) {
-			int lastUsedIdx = 0;
-			int next = i + 1;
-			//앞으로 사용되지 않는 refer string의 경우 lastUsedIdx가 가장 크기에 제일 먼저 빠짐.
-			//앞으로 사용되는 refer string 중 가장 나중에 쓰이는 기기의 lastUsedIdx 찾음.
-			while (next < element_cnt && check[j] != refer_buf[next]) {
-				lastUsedIdx++;
-				next++;
-			}
-
-			if (lastUsedIdx > deviceIdx) {
-				idx = j;
-				deviceIdx = lastUsedIdx;
-			}
-		}
-
-		pagefault_cnt++;
-		check[idx] = refer_buf[i];
-		printf("%d\t\t%d\t%d\t%d\tF\n", i, check[0], check[1], check[2]);
+	for (int i = 0; i < frame_cnt; i++) {
+		frame_buf[i] = -1; //frame_buf를 -1으로 초기화
 	}
-
-	printf("Number of page faults : %d times\n", pagefault_cnt);
-
+	memset(fault_check, ' ', sizeof(fault_check)); //fault_check 배열 초기화
 }
 
 /* ------ FIFO altorithm ------*/
