@@ -348,29 +348,38 @@ void SecondChance_algorithm(int frame_cnt, int element_cnt, int *refer_buf) {
 	for (int i = 0; i < element_cnt; i++) {
 		memset(level_print, 0, sizeof(level_print));
 
-		if (CheckExist(frame_buf, frame_cnt, refer_buf[i]) == -1 && frame_check_bit == 0) { //비어있는 frame을 발견한 경우
+		if (CheckExist(frame_buf, frame_cnt, refer_buf[i]) == -1 && frame_check_bit[i] == 0) { //비어있는 frame을 발견한 경우
+			frame_check_bit[i] = 1;
 			frame_buf[currIdx] = refer_buf[i]; //currIdx에 해당 reference string을 넣음
 			currIdx = (currIdx + 1) % frame_cnt; //currIdx의 값 증가
 			pagefault_cnt++; //pagefault_cnt 증가
-			frame_check_bit[i] = 1;
 			fault_check[i] = 'F';
+		}
+
+		else if (CheckExist(frame_buf, frame_cnt, refer_buf[i]) != -1 && frame_check_bit[i] == 0) {
+			frame_check_bit[i] = 1;
+			frame_buf[currIdx] = refer_buf[i]; //currIdx에 해당 reference string을 넣음
+			currIdx = (currIdx + 1) % frame_cnt; //currIdx의 값 증가
+			pagefault_cnt++; //pagefault_cnt 증가
+			fault_check[i] = 'F';
+			
 		}
 
 	
 		sprintf(level_print,"%d\t\t", i+1);
 		
-		if (frame_buf[1] == -1) sprintf(tmp_print, " \t");
-		else sprintf(tmp_print, "%d\t", frame_buf[1]);
+		if (frame_buf[0] == -1) sprintf(tmp_print, " \t");
+		else sprintf(tmp_print, "%d[%d]\t", frame_buf[0], frame_check_bit[0]);
 		strcat(level_print, tmp_print);
 		memset(tmp_print, 0, sizeof(tmp_print));
 		
 		if (frame_buf[1] == -1) sprintf(tmp_print, " \t");
-		else sprintf(tmp_print, "%d\t", frame_buf[1]);
+		else sprintf(tmp_print, "%d[%d]\t", frame_buf[1], frame_check_bit[1]);
 		strcat(level_print, tmp_print);
 		memset(tmp_print, 0, sizeof(tmp_print));
 		
-		if (frame_buf[1] == -1) sprintf(tmp_print, " \t");
-		else sprintf(tmp_print, "%d\t", frame_buf[1]);
+		if (frame_buf[2] == -1) sprintf(tmp_print, " \t");
+		else sprintf(tmp_print, "%d[%d]\t", frame_buf[2], frame_check_bit[2]);
 		strcat(level_print, tmp_print);
 		memset(tmp_print, 0, sizeof(tmp_print));
 		
@@ -405,20 +414,4 @@ int CalcFrameLongest (int idx, int element_cnt, int frame_element, int *refer_bu
 		}
 	}
 		return frame_distance++;
-}
-
-int search (int refer_element, int frame_cnt, int *frame_buf) {
-	bool exist = false;
-	int count = 0;
-
-	while (count != frame_cnt) {
-		if (frame_buf[count] == refer_element) {
-			exist = true;
-			break;
-		}
-		count++;
-	}
-
-	return exist? count : -1;
-
 }
