@@ -15,6 +15,7 @@ int CalcFrameLongest(int idx, int element_cnt, int frame_element, int *refer_buf
 int main (void) {
 	/* ------ 파일 관련 변수 ------ */
 	FILE *fp = NULL; //파일포인터
+	char filename[200];
 	char inputbuf[61]; // input.txt 파일 저장 공간
 
 	/* ------ page frame 관련 변수 ------ */
@@ -27,8 +28,11 @@ int main (void) {
 	/* ------ 메인 기능 관련 변수 ------ */
 	char option[50];
 
-	if ((fp = fopen("input.txt", "r")) == NULL) { //file open
-		fprintf(stderr, "input.txt fopen() error\n");
+	printf("input 파일의 이름을 입력하세요 : ");
+	scanf("%s", filename);
+
+	if ((fp = fopen(filename, "r")) == NULL) { //file open
+		fprintf(stderr, "%s fopen() error\n", filename);
 		exit(1);
 	}
 
