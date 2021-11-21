@@ -346,6 +346,16 @@ void SecondChance_algorithm(int frame_cnt, int element_cnt, int *refer_buf) {
 
 	memset(fault_check, ' ', sizeof(fault_check));
 	for (int i = 0; i < element_cnt; i++) {
+		memset(level_print, 0, sizeof(level_print));
+
+		if (CheckExist(frame_buf, frame_cnt, refer_buf[i]) == -1 && frame_check_bit == 0) { //비어있는 frame을 발견한 경우
+			frame_buf[currIdx] = refer_buf[i]; //currIdx에 해당 reference string을 넣음
+			currIdx = (currIdx + 1) % frame_cnt; //currIdx의 값 증가
+			pagefault_cnt++; //pagefault_cnt 증가
+			frame_check_bit[i] = 1;
+			fault_check[i] = 'F';
+		}
+
 	
 		sprintf(level_print,"%d\t\t", i+1);
 		
