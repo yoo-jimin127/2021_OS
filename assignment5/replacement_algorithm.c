@@ -132,6 +132,7 @@ void OPT_algorithm(int frame_cnt, int element_cnt, int *refer_buf) {
 				strcat(level_print, tmp_print);
 				memset(tmp_print, 0, sizeof(tmp_print));
 				
+				sprintf(tmp_print, "%c", fault_check[i]);
 				strcat(level_print, tmp_print);
 				printf("%s\n", level_print);
 				continue;
@@ -157,6 +158,7 @@ void OPT_algorithm(int frame_cnt, int element_cnt, int *refer_buf) {
 				strcat(level_print, tmp_print);
 				memset(tmp_print, 0, sizeof(tmp_print));
 				
+				sprintf(tmp_print, "%c", fault_check[i]);
 				strcat(level_print, tmp_print);
 				printf("%s\n", level_print);
 				
@@ -192,8 +194,8 @@ void OPT_algorithm(int frame_cnt, int element_cnt, int *refer_buf) {
 		else sprintf(tmp_print, "%d\t", frame_buf[2]);
 		strcat(level_print, tmp_print);
 		memset(tmp_print, 0, sizeof(tmp_print));
+
 		sprintf(tmp_print, "%c", fault_check[i]);
-		
 		strcat(level_print, tmp_print);
 		printf("%s\n", level_print);
 	}
@@ -315,8 +317,8 @@ void LRU_algorithm(int frame_cnt, int element_cnt, int *refer_buf) {
 		else sprintf(tmp_print, "%d\t", frame_buf[2]);
 		strcat(level_print, tmp_print);
 		memset(tmp_print, 0, sizeof(tmp_print));
-		sprintf(tmp_print, "%c", fault_check[i]);
-		
+
+		sprintf(tmp_print, "%c", fault_check[i]);	
 		strcat(level_print, tmp_print);
 		printf("%s\n", level_print);
 	}
@@ -340,6 +342,30 @@ void SecondChance_algorithm(int frame_cnt, int element_cnt, int *refer_buf) {
 	}
 
 	memset(fault_check, ' ', sizeof(fault_check));
+	for (int i = 0; i < element_cnt; i++) {
+		
+		sprintf(level_print,"%d\t\t", i+1);
+		
+		if (frame_buf[1] == -1) sprintf(tmp_print, " \t");
+		else sprintf(tmp_print, "%d\t", frame_buf[1]);
+		strcat(level_print, tmp_print);
+		memset(tmp_print, 0, sizeof(tmp_print));
+		
+		if (frame_buf[1] == -1) sprintf(tmp_print, " \t");
+		else sprintf(tmp_print, "%d\t", frame_buf[1]);
+		strcat(level_print, tmp_print);
+		memset(tmp_print, 0, sizeof(tmp_print));
+		
+		if (frame_buf[1] == -1) sprintf(tmp_print, " \t");
+		else sprintf(tmp_print, "%d\t", frame_buf[1]);
+		strcat(level_print, tmp_print);
+		memset(tmp_print, 0, sizeof(tmp_print));
+		
+		sprintf(tmp_print, "%c", fault_check[i]);
+		strcat(level_print, tmp_print);
+		printf("%s\n", level_print);
+	}
+	printf("Number of page faults : %d times\n", pagefault_cnt);
 }
 
 /* ------ frame의 empty 여부 확인 함수 ------ */
