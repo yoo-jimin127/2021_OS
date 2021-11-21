@@ -9,6 +9,7 @@ void OPT_algorithm(int frame_cnt, int element_cnt, int *refer_buf);
 void FIFO_algorithm(int frame_cnt, int element_cnt, int *refer_buf);
 void LRU_algorithm(int frame_cnt, int element_cnt, int *refer_buf);
 void SecondChance_algorithm(int frame_cnt, int element_cnt, int *refer_buf);
+int CheckExist(int *frame_buf, int frame_cnt, int refer_string);
 
 int main (void) {
 	/* ------ 파일 관련 변수 ------ */
@@ -141,49 +142,51 @@ void OPT_algorithm(int frame_cnt, int element_cnt, int *refer_buf) {
 /* ------ FIFO altorithm ------*/
 void FIFO_algorithm(int frame_cnt, int element_cnt, int *refer_buf) {
 	int *frame_buf = malloc(sizeof(int) * frame_cnt); //frame buf 동적할당
-	int *frame_check = malloc(sizeof(int) * frame_cnt); //frame이 비었는지 확인하는 배열
 	char *fault_check = malloc(sizeof(char) * element_cnt); //page fault의 발생여부를 저장하는 배열
+	char *level_print = malloc(sizeof(char) * 300); //각 단계에서의 page replacement 상태를 출력하는 메시지
+	char *tmp_print = malloc(sizeof(char) * 10); //문자열 저장을 위한 임시 버퍼
+
 	int pagefault_cnt = 0; //page fault counter
-	int idxCnt = 0; // 누적 인덱스
 	int currIdx = 0; //page reference string을 삽입하는 인덱스
 
 	for (int i = 0; i < frame_cnt; i++) {
-		frame_buf[i] = 0; //frame_buf를 0으로 초기화
-		frame_check[i] = 0; //비어있음을 의미하도록 frame_check의 모든 원소를 0으로 초기화
+		frame_buf[i] = -1; //frame_buf를 -1으로 초기화
 	}
 	memset(fault_check, ' ', sizeof(fault_check)); //fault_check 배열 초기화
 
-	for (int i = 0; i < element_cnt; i++) {
-		for (int j = 0; j < frame_cnt; j++) {
-			if (frame_buf[j] == refer_buf[i]) break; //hit가 발생하는 경우
+	for (int i = 0; i < element_cnt; i++) { //pagr reference string만큼 반복
+		memset(level_print, 0, sizeof(level_print));
 
-			if (frame_check[j] == 0) { //frame이 비어있는 경우
-				frame_buf[j] = refer_buf[i]; //해당 frame에 string insert 
-				frame_check[j]++; //해당 인덱스의 frame_check 값 + 1 (가장 오래된 frame 찾기 위함)
-				pagefault_cnt++;
-				fault_check[i] = 'F';
-				idxCnt++;
-				//printf("idxCnt : %d\n", idxCnt);
-				break;
-			}
-
-			if (idxCnt >= frame_cnt) {//frame이 비어있지 않은 경우
-				if (((idxCnt - 1) % 3) == 0) currIdx = 0;
-				else if (((idxCnt - 1) % 3) == 1) currIdx = 1;
-				else if (((idxCnt - 1) % 3) == 2) currIdx = 2;
-				
-				frame_buf[currIdx] = refer_buf[i];
-				frame_check[currIdx]++;
-
-				pagefault_cnt++;
-				fault_check[i] = 'F';
-				idxCnt++;
-				break;
-			}
+		if(CheckExist(frame_buf, frame_cnt, refer_buf[i]) == -1) { //비어있는 frame을 발견한 경우
+			frame_buf[currIdx] = refer_buf[i]; //currIdx의 위치에 해당 reference string을 넣음
+			currIdx = (currIdx + 1) % frame_cnt; //currIdx의 값 증가
+			pagefault_cnt++; //pagefault의 카운터 증가
+			fault_check[i] = 'F'; //해당 i번째 element에서의 page fault 발생여부 체크
 		}
-		printf("%d\t\t%d[%d]\t%d[%d]\t%d[%d]\t%c\n", i+1, frame_buf[0], frame_check[0], frame_buf[1], frame_check[1], frame_buf[2], frame_check[2], fault_check[i]);
-		//printf("page fault: %d\n", pagefault_cnt);
+		
+		sprintf(level_print,"%d\t\t", i+1);
+		if (frame_buf[0] == -1) sprintf(tmp_print, " \t");
+		else sprintf(tmp_print, "%d\t", frame_buf[0]);
+		strcat(level_print, tmp_print);
+		memset(tmp_print, 0, sizeof(tmp_print));
+		
+		if (frame_buf[1] == -1) sprintf(tmp_print, " \t");
+		else sprintf(tmp_print, "%d\t", frame_buf[1]);
+		strcat(level_print, tmp_print);
+		memset(tmp_print, 0, sizeof(tmp_print));
+		
+		if (frame_buf[2] == -1) sprintf(tmp_print, " \t");
+		else sprintf(tmp_print, "%d\t", frame_buf[2]);
+		strcat(level_print, tmp_print);
+		memset(tmp_print, 0, sizeof(tmp_print));
+		
+		sprintf(tmp_print, "%c", fault_check[i]);
+		strcat(level_print, tmp_print);
+		
+		printf("%s\n", level_print);
 	}
+
+	printf("Number of page faults : %d times\n", pagefault_cnt);
 }
 
 /* ------ LRU altorithm ------*/
@@ -194,4 +197,14 @@ void LRU_algorithm(int frame_cnt, int element_cnt, int *refer_buf) {
 /* ------ Second Chance altorithm ------*/
 void SecondChance_algorithm(int frame_cnt, int element_cnt, int *refer_buf) {
 
+}
+
+int CheckExist (int *frame_buf, int frame_cnt, int refer_string) {
+	for (int i = 0; i < frame_cnt; i++) {
+		if (frame_buf[i] == refer_string) {
+			return i;
+		}
+	}
+		
+		return -1;
 }
