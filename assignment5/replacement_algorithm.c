@@ -56,7 +56,11 @@ int main (void) {
 
 	printf("page reference string : %s\n", ptr);
 	printf("\n");
-	printf("\tframe   1\t2\t3\tpage fault\n");
+	printf("\tframe   ");
+	for (int i = 0; i < frame_cnt; i++) {
+		printf("%d\t", i+1);
+	}
+	printf("page fault\n");
 	printf("time\n");
 	
 	/* ------ 옵션에 따른 알고리즘 기법 적용 ------ */
