@@ -91,11 +91,81 @@ void OPT_algorithm(int frame_cnt, int element_cnt, int *refer_buf) {
 
 	int pagefault_cnt = 0; //page fault counter
 	int currIdx = 0; //page reference string을 삽입하는 인덱스
+	int selectedIdx = 0; //OPT 알고리즘에 의해 선택된 인덱스
+	int longest_frameNum = 0; //앞으로 가장 오랫동안 참조되지 않을 frame의 index number
+	int frame_distance = 1; //각 frame별 참조되지 않는 시간을 저장하는 변수
 
 	for (int i = 0; i < frame_cnt; i++) {
 		frame_buf[i] = -1; //frame_buf를 -1으로 초기화
 	}
+	
 	memset(fault_check, ' ', sizeof(fault_check)); //fault_check 배열 초기화
+
+	for (int i = 0; i < frame_cnt; i++) {
+		memset(level_print, 0, sizeof(level_print));
+		longest_frameNum = 0; //가장 오랫동안 참조되지 않은 frame의 index number 초기화
+		
+		if (frame_cnt > currIdx) { //currIdx의 값이 frame_cnt보다 작은 경우(비어있는 frame 존재)
+			if(CheckExist(frame_buf, frame_cnt, refer_buf[i]) == -1) { //비어있는 frame을 발견한 경우		
+				frame_buf[currIdx] = refer_buf[i]; //refer_buf[i]의 메모리를 currIdx 값에 저장
+				pagefault_cnt++; //pagefault_cnt 증가
+				fault_check[i] = 'F'; //해당 i번째 element에서의 page fault 발생여부 체크
+				currIdx++;
+			}
+
+			else { //page fault가 발생하지 않는 경우
+				continue;
+			}
+		}
+
+		else { //OPTIMAL Page replacement 발생
+			if(CheckExist(frame_buf, frame_cnt, refer_buf[i]) != -1) { //빈 frame이 존재하지 않는 경우
+				continue;
+			}
+
+			for (int j = 0; j < frame_cnt; j++) { //page fault가 발생하는 경우
+				for (int k = i + 1; k < element_cnt; k++) {
+					if(refer_buf[k] != frame_buf[j]) frame_distance++; //앞으로의 refer_buf이 frame_buf[k]인덱스의 값과 일치하지 않을 경우 frame의 distance 값을 증가 
+					else break;
+				}
+
+				if (longest_frameNum < frame_distance) { //현재 longest_frameNum이 계산된 frame_distance 값보다 큰 경우
+					longest_frameNum = frame_distance; //longest_frameNum 값 갱신
+					selectedIdx = j; //OPT 알고리즘에 의해 갱신된 index num 설정
+				}
+
+				frame_distance = 1; //frame_distance 초기화
+			}
+
+			frame_buf[selectedIdx] = refer_buf[i]; //선택된 인덱스의 프레임에 메모리 저장
+			pagefault_cnt++; //pagefault의 카운터 증가
+			fault_check[i] = 'F'; //해당 i번째 element에서의 page fault 발생여부 체크
+		}
+
+		sprintf(level_print,"%d\t\t", i+1);
+
+		if (frame_buf[0] == -1) sprintf(tmp_print, " \t");
+		else sprintf(tmp_print, "%d\t", frame_buf[0]);
+		strcat(level_print, tmp_print);
+		memset(tmp_print, 0, sizeof(tmp_print));
+		
+		if (frame_buf[1] == -1) sprintf(tmp_print, " \t");
+		else sprintf(tmp_print, "%d\t", frame_buf[1]);
+		strcat(level_print, tmp_print);
+		memset(tmp_print, 0, sizeof(tmp_print));
+		
+		if (frame_buf[2] == -1) sprintf(tmp_print, " \t");
+		else sprintf(tmp_print, "%d\t", frame_buf[2]);
+		strcat(level_print, tmp_print);
+		memset(tmp_print, 0, sizeof(tmp_print));
+		sprintf(tmp_print, "%c", fault_check[i]);
+		
+		strcat(level_print, tmp_print);
+		printf("%s\n", level_print);
+	}
+
+	printf("Number of page faults : %d times\n", pagefault_cnt);
+
 }
 
 /* ------ FIFO altorithm ------*/
