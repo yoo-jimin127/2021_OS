@@ -10,6 +10,7 @@ void FIFO_algorithm(int frame_cnt, int element_cnt, int *refer_buf);
 void LRU_algorithm(int frame_cnt, int element_cnt, int *refer_buf);
 void SecondChance_algorithm(int frame_cnt, int element_cnt, int *refer_buf);
 int CheckExist(int *frame_buf, int frame_cnt, int refer_string);
+int CalcFrameLongest(int idx, int element_cnt, int frame_element, int *refer_buf);
 
 int main (void) {
 	/* ------ 파일 관련 변수 ------ */
@@ -93,8 +94,8 @@ void OPT_algorithm(int frame_cnt, int element_cnt, int *refer_buf) {
 	int currIdx = 0; //page reference string을 삽입하는 인덱스
 	int selectedIdx = 0; //OPT 알고리즘에 의해 선택된 인덱스
 	int longest_frameNum = 0; //앞으로 가장 오랫동안 참조되지 않을 frame의 index number
-	int frame_distance = 1; //각 frame별 참조되지 않는 시간을 저장하는 변수
-
+	int frame_distance = 0; //각 frame별 참조되지 않는 시간을 저장하는 변수
+	
 	for (int i = 0; i < frame_cnt; i++) {
 		frame_buf[i] = -1; //frame_buf를 -1으로 초기화
 	}
@@ -124,17 +125,11 @@ void OPT_algorithm(int frame_cnt, int element_cnt, int *refer_buf) {
 			}
 
 			for (int j = 0; j < frame_cnt; j++) { //page fault가 발생하는 경우
-				for (int k = i + 1; k < element_cnt; k++) {
-					if(refer_buf[k] != frame_buf[j]) frame_distance++; //앞으로의 refer_buf이 frame_buf[k]인덱스의 값과 일치하지 않을 경우 frame의 distance 값을 증가 
-					else break;
-				}
-
+				frame_distance = CalcFrameLongest(i, element_cnt, frame_buf[j], refer_buf);
 				if (longest_frameNum < frame_distance) { //현재 longest_frameNum이 계산된 frame_distance 값보다 큰 경우
 					longest_frameNum = frame_distance; //longest_frameNum 값 갱신
 					selectedIdx = j; //OPT 알고리즘에 의해 갱신된 index num 설정
 				}
-
-				frame_distance = 1; //frame_distance 초기화
 			}
 
 			frame_buf[selectedIdx] = refer_buf[i]; //선택된 인덱스의 프레임에 메모리 저장
@@ -291,11 +286,24 @@ void LRU_algorithm(int frame_cnt, int element_cnt, int *refer_buf) {
 
 }
 
-/* ------ Second Chance altorithm ------*/
+/* ------ Second Chance altorithm ------ */
 void SecondChance_algorithm(int frame_cnt, int element_cnt, int *refer_buf) {
+	int *frame_buf = malloc(sizeof(int) * frame_cnt); //frame buf 동적 할당
+	char *fault_check = malloc(sizeof(char) * element_cnt); //page fault의 발생 여부를 저장하는 배열
+	char *level_print = malloc(sizeof(char) * 300); //각 단계에서의 page replacement 상태를 출력하는 메시지
+	char *tmp_print = malloc(sizeof(char) * 10); //문자열 저장을 위한 임시 버퍼
 
+	int pagefault_cnt = 0; //page fault counter
+	int currIdx = 0; //page reference string을 삽입하는 인덱스
+
+	for (int i = 0; i < frame_cnt; i++) {
+		frame_buf[i] = -1; //frame_buf를 -1으로 초기화
+	}
+
+	memset(fault_check, ' ', sizeof(fault_check));
 }
 
+/* ------ frame의 empty 여부 확인 함수 ------ */
 int CheckExist (int *frame_buf, int frame_cnt, int refer_string) {
 	for (int i = 0; i < frame_cnt; i++) {
 		if (frame_buf[i] == refer_string) {
@@ -304,4 +312,19 @@ int CheckExist (int *frame_buf, int frame_cnt, int refer_string) {
 	}
 		
 		return -1;
+}
+
+/* ------ OPT 알고리즘: 앞으로 가장 오래 참조되지 않을 framenum 계산 함수 ------ */
+int CalcFrameLongest (int idx, int element_cnt, int frame_element, int *refer_buf) {
+	int frame_distance = 0; //각 frame의 element가 다음 참조까지 걸리는 시간 저장 변수
+	for (int i = idx + 1; i < element_cnt; i++) {
+		if (frame_element != refer_buf[i]) {
+			frame_distance++;
+		}
+
+		else {
+			break;
+		}
+	}
+		return frame_distance++;
 }
