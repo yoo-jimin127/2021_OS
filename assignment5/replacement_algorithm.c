@@ -330,20 +330,23 @@ void LRU_algorithm(int frame_cnt, int element_cnt, int *refer_buf) {
 /* ------ Second Chance altorithm ------ */
 void SecondChance_algorithm(int frame_cnt, int element_cnt, int *refer_buf) {
 	int *frame_buf = malloc(sizeof(int) * frame_cnt); //frame buf 동적 할당
+	int *frame_check_bit = malloc(sizeof(int) * frame_cnt); // frame reference bit
 	char *fault_check = malloc(sizeof(char) * element_cnt); //page fault의 발생 여부를 저장하는 배열
 	char *level_print = malloc(sizeof(char) * 300); //각 단계에서의 page replacement 상태를 출력하는 메시지
 	char *tmp_print = malloc(sizeof(char) * 10); //문자열 저장을 위한 임시 버퍼
 
 	int pagefault_cnt = 0; //page fault counter
 	int currIdx = 0; //page reference string을 삽입하는 인덱스
+	int max = 0;
 
 	for (int i = 0; i < frame_cnt; i++) {
 		frame_buf[i] = -1; //frame_buf를 -1으로 초기화
+		frame_check_bit[i] = 0; //frame check bit를 0으로 초기화
 	}
 
 	memset(fault_check, ' ', sizeof(fault_check));
 	for (int i = 0; i < element_cnt; i++) {
-		
+	
 		sprintf(level_print,"%d\t\t", i+1);
 		
 		if (frame_buf[1] == -1) sprintf(tmp_print, " \t");
@@ -392,4 +395,20 @@ int CalcFrameLongest (int idx, int element_cnt, int frame_element, int *refer_bu
 		}
 	}
 		return frame_distance++;
+}
+
+int search (int refer_element, int frame_cnt, int *frame_buf) {
+	bool exist = false;
+	int count = 0;
+
+	while (count != frame_cnt) {
+		if (frame_buf[count] == refer_element) {
+			exist = true;
+			break;
+		}
+		count++;
+	}
+
+	return exist? count : -1;
+
 }
