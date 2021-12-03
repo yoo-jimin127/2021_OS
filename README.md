@@ -64,3 +64,8 @@
 - 가상메모리 관리 기법의 하나인 <페이지 교체 기법> 중 OPT, FIFO, LRU, Second-Chance를 구현하고 동작 과정을 보여주는 시뮬레이터 구현
   - [페이지 교체 기법 알고리즘](https://m.blog.naver.com/xowns4817/221226671491)
   - [페이지 교체 기법 알고리즘 참고 자료](https://velog.io/@yanghl98/%EC%9A%B4%EC%98%81%EC%B2%B4%EC%A0%9COS-%ED%8E%98%EC%9D%B4%EC%A7%80-%EA%B5%90%EC%B2%B4-%EC%95%8C%EA%B3%A0%EB%A6%AC%EC%A6%98FIFO-OPT-LRU-LFU)
+
+------
+
+### project 6
+- pthread 및 동기화(synchronization)을 활용해 교차로에서의 차량 진입 문제 해결 
