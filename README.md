@@ -69,3 +69,4 @@
 
 ### project 6
 - pthread 및 동기화(synchronization)을 활용해 교차로에서의 차량 진입 문제 해결 
+  - [뮤텍스 관련 예제](https://velog.io/@hey-chocopie/%EB%AE%A4%ED%85%8D%EC%8A%A4-%EC%98%88%EC%A0%9C-%EC%82%AC%EC%9A%A9%ED%95%B4%EB%B3%B4%EC%9E%90#3-%EB%AE%A4%ED%85%8D%EC%8A%A4-%EC%98%88%EC%A0%9C)
