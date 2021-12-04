@@ -15,7 +15,7 @@
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER; //mutex initialization
 int ncount = 0; //share resource by thread
 int result = 0; //store return value at pthread_join()
-pthread_cont_t mainThr_cond = PTHREAD_COND_INITIALIZER; //pthread condition var initializer (main pthread)
+pthread_cond_t mainThr_cond = PTHREAD_COND_INITIALIZER; //pthread condition var initializer (main pthread)
 pthread_cond_t cond[4] = { PTHREAD_COND_INITIALIZER, PTHREAD_COND_INITIALIZER, PTHREAD_COND_INITIALIZER, PTHREAD_COND_INITIALIZER }; //pthread condition var initialization (each 4 pthreads) 
 
 int userInput = 0; //user's input at program init screen
@@ -28,8 +28,10 @@ int movingIdx = 0; // moving vehicle's array index
 int *arriveCheck; // vehicle's arriveed check array
 int totalTime = 0; //total time(ticks)
 int iterNum = 0; //iterator used to occupy pthread
+int arriveCnt = 0; //arrived car's count
 
 /* ====== << function declaration >> ====== */
+void status_print(); //status print each tick
 void *thr1_function(void *data); //<p1> thread function
 void *thr2_function(void *data); //<p2> thread function
 void *thr3_function(void *data); //<p3> thread function
@@ -37,6 +39,8 @@ void *thr4_function(void *data); //<p4> thread function
 
 int main (void) {
 	int pointCnt[4] = { 0, }; //count each start point
+	int diff = 0; //time difference store variable 
+	int flag = 0; //check time flag
 
 	/* ====== << definition related to pthread >> ====== */ 
 	int thr_id; //thread id
@@ -114,10 +118,9 @@ int main (void) {
 	while(1) {
 		pthread_mutex_lock(&mutex); //pthred mutex lock instruction
 		
-		passCar = 0; //arrived car's value initialize
-		
-		toalTime++; //update tick(total time)
-		if (totalTime > userInput) iterNum = userInput;
+		passCar = 0; //arrived car's value initialize	
+		totalTime++; //update tick(total time)
+		if (totalTime >= userInput) iterNum = userInput;
 		else iterNum = totalTime;
 		
 		/* ====== << CASE 1. no moving Car >> ====== */
@@ -130,12 +133,55 @@ int main (void) {
 				}
 			}
 		}
+		pthread_cond_signal(&cond[movingCar - 1]); // wake waiting thread : movingCar idx cond
+		pthread_cond_wait(&mainThr_cond, &mutex); // wait main thread's condition variable
 
-		/* ====== << CASE 2. >> ====== */
+		/* ====== << CASE 2. exist waiting car >> ====== */
+		if (waitCar[movingIdx] == 2) {
+			flag = 0;
 
+			for (int i = 0; i < iterNum; i++) {
+				diff = movingCar - startList[i];
+				if (diff < 0) diff *= (-1);
+				if ((diff == 2) && (arriveCheck[i] == 0)) {
+					movingCar = startList[i];
+					movingIdx = i;
+					flag = 1;
+					break;
+				}
+			}
 
+			if (flag == 1) {
+				pthread_cond_signal(&cond[movingCar - 1]);
+				pthread_cond_wait(&mainThr_cond, &mutex);
+			}
+
+			else {
+				movingCar = 0;
+				movingIdx = 0;
+			}
+		}
+
+		status_print();
+
+		if (arriveCnt == userInput) {
+			passCar = 0;
+			totalTime++;
+
+			status_print();
+
+			break;
+		}
+		
+		pthread_mutex_unlock(&mutex);
 	}
 
+	/* pthread_cond_signal(&cond[0]);
+	pthread_cond_signal(&cond[1]);
+	pthread_cond_signal(&cond[2]);
+	pthread_cond_signal(&cond[3]); */
+
+	/* ====== << pthread end >> ====== */
 	pthread_join(p_thread[0], (void **)&status);
 	pthread_join(p_thread[1], (void **)&status);
 	pthread_join(p_thread[2], (void **)&status);
@@ -159,50 +205,153 @@ int main (void) {
 	return 0;
 }
 
+/* ====== << status print each ticks >> ======= */
+void status_print() {
+	printf("tick : ");
+	printf("%d\n", totalTime);
+	printf("===============================\n");
+
+	printf("Passed Vehicle\n");
+	printf("Car ");
+	if (passCar == 0) printf("\n");
+	else printf("%d\n", passCar);
+
+	printf("Waiting Vehicle\n");
+	printf("Car ");
+	for (int i = 0; i < iterNum; i++) {
+		if (waitCar[i] == 0) printf("%d ", startList[i]);
+	}
+	printf("\n===============================\n");
+}
+
 /* ====== << <P1> thread function >> ====== */
 void *thr1_function(void *data) {
-	pid_t pid; //process id
 	pthread_t tid; //thread id
+	tid = pthread_self();
+	
+	while(1) {
+		pthread_mutex_lock(&mutex); //pthread mutex lock instruction
+		
+		pthread_cond_signal(&mainThr_cond); //wake main thread's condition variable
+		pthread_cond_wait(&cond[0], &mutex); //wait first thread's condition variable
 
-	pid = getpid();
+		/* ====== << CASE 1. all cars arrived >> ====== */
+		if (arriveCnt == userInput) {
+			pthread_mutex_unlock(&mutex); //make mutex unlock status
+			break;
+		}
+
+		/* ====== << CASE 2. no all cars arrived >> ====== */
+		waitCar[movingIdx]++; //make movingCar array index's status -> waiting
+		
+		if (waitCar[movingIdx] == 2) { //when waitCar[movingIdx] == 2 -> pass that car
+			arriveCheck[movingIdx] = 1;
+			passCar = 1;
+			
+			arriveCnt++;
+		}
+
+		pthread_mutex_unlock(&mutex); //pthread mutex unlock
+	}
+
+	return NULL;
+}
+
+/* ====== << <P2> thread function >> ====== */
+void *thr2_function(void *data) {
+	pthread_t tid; //thread id
 	tid = pthread_self();
 
-	char *thread_name = (char*)data;
-	/*	
-	pthread_mutex_lock(&mutex);
 	while(1) {
-		totalTime++;
+		pthread_mutex_lock(&mutex); //pthread mutex lock instruction
 
-		printf("tick : %d\n", totalTime);
-		printf("===============================\n");
-		printf("Passed Vehicle\n");
-		printf("Car %d\n", passCar);
-		printf("Waiting Vehicle\n");
-		printf("Car ");
-		for (int i = 0; i < MAX_ARR_SIZE; i++) {
-			if (waitCar[i] == 0) break;
-			printf("%d ", waitCar[i]);
+		pthread_cond_signal(&mainThr_cond); //wake main thread's condition variable
+		pthread_cond_wait(&cond[1], &mutex); //wait first thread's condition variable
+
+		/* ====== << CASE 1. all cars arrived >> ====== */
+		if (arriveCnt == userInput) {
+			pthread_mutex_unlock(&mutex); //make mutex unlock status
+			break;
 		}
-		printf("\n===============================\n");
-		sleep(1);
 
+		/* ====== << CASE 2. no all cars arrived >> ====== */
+		waitCar[movingIdx]++; //make movingCar array index's status -> waiting
+
+		if (waitCar[movingIdx] == 2) { //when waitCar[movingIdx] == 2 -> pass that car
+			arriveCheck[movingIdx] = 1;
+			passCar = 2;
+
+			arriveCnt++;
+		}
+
+		pthread_mutex_unlock(&mutex); //pthread mutex unlock
 	}
-	pthread_mutex_unlock(&mutex);
-	*/
-	
+
+	return NULL;
 }
 
-/* ====== << <P1> thread function >> ====== */
-void *thr2_function(void *data) {
-
-}
-
-
-/* ====== << <P1> thread function >> ====== */
+/* ====== << <P3> thread function >> ====== */
 void *thr3_function(void *data) {
+	pthread_t tid; //thread id
+	tid = pthread_self();
 
+	while(1) {
+		pthread_mutex_lock(&mutex); //pthread mutex lock instruction
+
+		pthread_cond_signal(&mainThr_cond); //wake main thread's condition variable
+		pthread_cond_wait(&cond[2], &mutex); //wait first thread's condition variable
+
+		/* ====== << CASE 1. all cars arrived >> ====== */
+		if (arriveCnt == userInput) {
+			pthread_mutex_unlock(&mutex); //make mutex unlock status
+			break;
+		}
+
+		/* ====== << CASE 2. no all cars arrived >> ====== */
+		waitCar[movingIdx]++; //make movingCar array index's status -> waiting
+
+		if (waitCar[movingIdx] == 2) { //when waitCar[movingIdx] == 2 -> pass that car
+			arriveCheck[movingIdx] = 1;
+			passCar = 3;
+
+			arriveCnt++;
+		}
+
+		pthread_mutex_unlock(&mutex); //pthread mutex unlock
+	}
+
+	return NULL;
 }
 
-
-/* ====== << <P1> thread function >> ====== */
+/* ====== << <P4> thread function >> ====== */
 void *thr4_function(void *data) {
+	pthread_t tid; //thread id
+	tid = pthread_self();
+
+	while(1) {
+		pthread_mutex_lock(&mutex); //pthread mutex lock instruction
+
+		pthread_cond_signal(&mainThr_cond); //wake main thread's condition variable
+		pthread_cond_wait(&cond[3], &mutex); //wait first thread's condition variable
+		
+		/* ====== << CASE 1. all cars arrived >> ====== */
+		if (arriveCnt == userInput) {
+			pthread_mutex_unlock(&mutex); // wake main thread's condition variable
+			break;
+		}
+
+		/* ====== << CASE 2. no all cars arrived >> ====== */
+		waitCar[movingIdx]++; //make movingCar array index's status -> waiting
+
+		if (waitCar[movingIdx] == 2) { //when waitCar[movingIdx] == 2 -> pass that car
+			arriveCheck[movingIdx] = 1;
+			passCar = 4;
+
+			arriveCnt++;
+		}
+
+		pthread_mutex_unlock(&mutex); //pthread mutex unlock
+	}
+
+	return NULL;
+}
