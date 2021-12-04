@@ -10,29 +10,42 @@
 
 #define THREAD_NUM 4
 #define MAX_ARR_SIZE 15
+
+/* ====== << global variable declaration >> ====== */
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER; //mutex initialization
 int ncount = 0; //share resource by thread
 int result = 0; //store return value at pthread_join()
+pthread_cont_t mainThr_cond = PTHREAD_COND_INITIALIZER; //pthread condition var initializer (main pthread)
+pthread_cond_t cond[4] = { PTHREAD_COND_INITIALIZER, PTHREAD_COND_INITIALIZER, PTHREAD_COND_INITIALIZER, PTHREAD_COND_INITIALIZER }; //pthread condition var initialization (each 4 pthreads) 
 
-int totalTime = 0; //total time(ticks)
-int passCar = 0; // passed vihicle
-int waitCar[MAX_ARR_SIZE] = { 0, }; // waiting vehicle array
-int *startList; // start position list by userInput
 int userInput = 0; //user's input at program init screen
+int *startList; // start position list by userInput
+int passCar = 0; // arriveed vehicle
+int *waitCar; // waiting vehicle array
+int movingCar = 0; // moving Vehicle
+int movingIdx = 0; // moving vehicle's array index
 
-void *t_function(void *data); //thread function
+int *arriveCheck; // vehicle's arriveed check array
+int totalTime = 0; //total time(ticks)
+int iterNum = 0; //iterator used to occupy pthread
+
+/* ====== << function declaration >> ====== */
+void *thr1_function(void *data); //<p1> thread function
+void *thr2_function(void *data); //<p2> thread function
+void *thr3_function(void *data); //<p3> thread function
+void *thr4_function(void *data); //<p4> thread function
 
 int main (void) {
 	int pointCnt[4] = { 0, }; //count each start point
 
-	/* ------ << definition related to pthread >> ------ */ 
+	/* ====== << definition related to pthread >> ====== */ 
 	int thr_id; //thread id
-	pthread_t p_thread[THREAD_NUM]; //
+	pthread_t p_thread[THREAD_NUM]; //thread ID storage (each 4 threads)
 	pthread_attr_t attr; //set of thread attributes
-	char p1[] = "thread_1";
-	char p2[] = "thread_2";
-	char p3[] = "thread_3";
-	char p4[] = "thread_4";
+	char p1[] = "thread_p1";
+	char p2[] = "thread_p2";
+	char p3[] = "thread_p3";
+	char p4[] = "thread_p4";
 	char pM[] = "thread_m";
 	int status;
 
@@ -40,8 +53,11 @@ int main (void) {
 	scanf("%d", &userInput);
 	printf("\n");
 
-	startList = malloc(sizeof(int) * userInput); //memory allocation size by userInput
-	
+	/* ====== << memory allocation part >> ====== */
+	startList = (int *)malloc(sizeof(int) * userInput); //memory allocation size by userInput
+	waitCar = (int *)malloc(sizeof(int) * userInput);
+	arriveCheck = (int *)malloc(sizeof(int) * userInput);
+
 	srand((unsigned)time(NULL)); //initialize random set
 	memset(startList, 0, userInput); //initialize startList array
 	
@@ -61,31 +77,64 @@ int main (void) {
 		printf("%d ", startList[i]);
 	}
 
-	thr_id = pthread_create(&p_thread[0], NULL, t_function, (void *)p1);
-	if (thr_id < 0) {
-		perror("thread create error : ");
-		exit(1);
-	}
+	/* ====== << create 4 threads progress >> ====== */
+	pthread_mutex_lock(&mutex); //pthread mutex lock instruction
 
-	thr_id = pthread_create(&p_thread[1], NULL, t_function, (void *)p2);
+	thr_id = pthread_create(&p_thread[0], NULL, thr1_function, (void *)p1); //create thread1
 	if (thr_id < 0) {
-		perror("thread create error : ");
-		exit(1);
+		perror("thread1 create error : "); // if error occurs, print error
+		exit(1); //abnormal end
 	}
+	pthread_cond_wait(&mainThr_cond, &mutex); //wait main thread's condition variable
 
-	thr_id = pthread_create(&p_thread[2], NULL, t_function, (void *)p3);
+	thr_id = pthread_create(&p_thread[1], NULL, thr2_function, (void *)p2); //create thread2
 	if (thr_id < 0) {
-		perror("thread create error : ");
-		exit(1);
+		perror("thread create error : "); // if error occurs, print error
+		exit(1); //abnormal end
 	}
-	
-	thr_id = pthread_create(&p_thread[3], NULL, t_function, (void *)p4);
+	pthread_cond_wait(&mainThr_cond, &mutex); //wait main thread's condition variable
+
+	thr_id = pthread_create(&p_thread[2], NULL, thr3_function, (void *)p3); //create thread3
 	if (thr_id < 0) {
-		perror("thread create error : ");
-		exit(1);
+		perror("thread create error : "); // if error occurs, print error
+		exit(1); //abnormal end
 	}
+	pthread_cond_wait(&mainThr_cond, &mutex); //wait main thread's codition variable
 	
-	t_function((void *)pM);
+	thr_id = pthread_create(&p_thread[3], NULL, thr4_function, (void *)p4); //create thread4
+	if (thr_id < 0) {
+		perror("thread create error : "); // if error occurs, print error
+		exit(1); //abnormal end
+	}
+	pthread_cond_wait(&mainThr_cond, &mutex); //wait main thread's condition variable
+	
+	pthread_mutex_unlock(&mutex); //pthead mutex unlock instruction
+
+	/* ====== << mutex occupy & thread operation >> ====== */
+	while(1) {
+		pthread_mutex_lock(&mutex); //pthred mutex lock instruction
+		
+		passCar = 0; //arrived car's value initialize
+		
+		toalTime++; //update tick(total time)
+		if (totalTime > userInput) iterNum = userInput;
+		else iterNum = totalTime;
+		
+		/* ====== << CASE 1. no moving Car >> ====== */
+		if (movingCar == 0) {
+			for (int i = 0; i < iterNum; i++) {
+				if (arriveCheck[i] == 0) {
+					movingIdx = i; //update moving car's array index
+					movingCar = startList[i];
+					break;
+				}
+			}
+		}
+
+		/* ====== << CASE 2. >> ====== */
+
+
+	}
 
 	pthread_join(p_thread[0], (void **)&status);
 	pthread_join(p_thread[1], (void **)&status);
@@ -110,7 +159,8 @@ int main (void) {
 	return 0;
 }
 
-void *t_function(void *data) {
+/* ====== << <P1> thread function >> ====== */
+void *thr1_function(void *data) {
 	pid_t pid; //process id
 	pthread_t tid; //thread id
 
@@ -118,7 +168,7 @@ void *t_function(void *data) {
 	tid = pthread_self();
 
 	char *thread_name = (char*)data;
-	
+	/*	
 	pthread_mutex_lock(&mutex);
 	while(1) {
 		totalTime++;
@@ -138,6 +188,21 @@ void *t_function(void *data) {
 
 	}
 	pthread_mutex_unlock(&mutex);
+	*/
 	
 }
 
+/* ====== << <P1> thread function >> ====== */
+void *thr2_function(void *data) {
+
+}
+
+
+/* ====== << <P1> thread function >> ====== */
+void *thr3_function(void *data) {
+
+}
+
+
+/* ====== << <P1> thread function >> ====== */
+void *thr4_function(void *data) {
