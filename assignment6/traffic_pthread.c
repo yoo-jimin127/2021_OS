@@ -110,8 +110,7 @@ int main (void) {
 		perror("thread create error : "); // if error occurs, print error
 		exit(1); //abnormal end
 	}
-	pthread_cond_wait(&mainThr_cond, &mutex); //wait main thread's condition variable
-	
+	pthread_cond_wait(&mainThr_cond, &mutex); //wait main thread's condition variable	
 	pthread_mutex_unlock(&mutex); //pthead mutex unlock instruction
 
 	/* ====== << mutex occupy & thread operation >> ====== */
@@ -137,56 +136,42 @@ int main (void) {
 		pthread_cond_wait(&mainThr_cond, &mutex); // wait main thread's condition variable
 
 		/* ====== << CASE 2. exist waiting car >> ====== */
-		if (waitCar[movingIdx] == 2) {
-			flag = 0;
+		if (waitCar[movingIdx] == 2) { // car's moving time: 2sec
+			flag = 0; //initialize check time flag
 
 			for (int i = 0; i < iterNum; i++) {
-				diff = movingCar - startList[i];
+				diff = movingCar - startList[i]; //difference between cars == 2 -> new car move
 				if (diff < 0) diff *= (-1);
 				if ((diff == 2) && (arriveCheck[i] == 0)) {
-					movingCar = startList[i];
-					movingIdx = i;
-					flag = 1;
+					movingCar = startList[i]; //update movingCar
+					movingIdx = i; //update movingCar's index
+					flag = 1; //check flag bit
 					break;
 				}
 			}
 
-			if (flag == 1) {
-				pthread_cond_signal(&cond[movingCar - 1]);
-				pthread_cond_wait(&mainThr_cond, &mutex);
+			if (flag == 1) { //if flag checked
+				pthread_cond_signal(&cond[movingCar - 1]); //wake movingCar's condition variable
+				pthread_cond_wait(&mainThr_cond, &mutex); //wait main thread's condition variable
 			}
 
-			else {
-				movingCar = 0;
+			else { //flage is not checked
+				movingCar = 0; //initialize movingCar & movingIdx
 				movingIdx = 0;
 			}
 		}
-
 		status_print();
 
-		if (arriveCnt == userInput) {
-			passCar = 0;
+		if (arriveCnt == userInput) { //all car arrived
+			passCar = 0; //no ever left passed Car
 			totalTime++;
-
 			status_print();
-
 			break;
 		}
-		
-		pthread_mutex_unlock(&mutex);
+		pthread_mutex_unlock(&mutex); //change: pthread mutex lock -> unlock
 	}
 
-	/* pthread_cond_signal(&cond[0]);
-	pthread_cond_signal(&cond[1]);
-	pthread_cond_signal(&cond[2]);
-	pthread_cond_signal(&cond[3]); */
-
-	/* ====== << pthread end >> ====== */
-	pthread_join(p_thread[0], (void **)&status);
-	pthread_join(p_thread[1], (void **)&status);
-	pthread_join(p_thread[2], (void **)&status);
-	pthread_join(p_thread[3], (void **)&status);
-
+	/* ====== << record start point count & total time >> ====== */
 	printf("Number of vehicles passed from each start point\n");
 	for (int i = 0; i < userInput; i++) {
 		if (startList[i] == 1) pointCnt[0]++;
@@ -194,16 +179,14 @@ int main (void) {
 		else if (startList[i] == 3) pointCnt[2]++;
 		else if (startList[i] == 4) pointCnt[3]++;
 	}
-
 	for (int i = 0; i < 4; i++) {
 		printf("P%d : %d times\n", i+1, pointCnt[i]);
 	}
-
 	printf("Total time : %d ticks\n", totalTime);
-	
-	
+		
 	return 0;
 }
+
 
 /* ====== << status print each ticks >> ======= */
 void status_print() {
@@ -223,6 +206,7 @@ void status_print() {
 	}
 	printf("\n===============================\n");
 }
+
 
 /* ====== << <P1> thread function >> ====== */
 void *thr1_function(void *data) {
@@ -257,6 +241,7 @@ void *thr1_function(void *data) {
 	return NULL;
 }
 
+
 /* ====== << <P2> thread function >> ====== */
 void *thr2_function(void *data) {
 	pthread_t tid; //thread id
@@ -290,6 +275,7 @@ void *thr2_function(void *data) {
 	return NULL;
 }
 
+
 /* ====== << <P3> thread function >> ====== */
 void *thr3_function(void *data) {
 	pthread_t tid; //thread id
@@ -322,6 +308,7 @@ void *thr3_function(void *data) {
 
 	return NULL;
 }
+
 
 /* ====== << <P4> thread function >> ====== */
 void *thr4_function(void *data) {
