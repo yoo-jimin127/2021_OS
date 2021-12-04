@@ -9,14 +9,21 @@
 #include <errno.h>
 
 #define THREAD_NUM 4
+#define MAX_ARR_SIZE 15
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER; //mutex initialization
-int share_count = 0; //share resource by thread
+int ncount = 0; //share resource by thread
+int result = 0; //store return value at pthread_join()
+
+int totalTime = 0; //total time(ticks)
+int passCar = 0; // passed vihicle
+int waitCar[MAX_ARR_SIZE] = { 0, }; // waiting vehicle array
+int *startList; // start position list by userInput
+int userInput = 0; //user's input at program init screen
 
 void *t_function(void *data); //thread function
 
 int main (void) {
-	int userInput = 0; //user's input at program init screen
-	int *startList; // start position list by userInput
+	int pointCnt[4] = { 0, }; //count each start point
 
 	/* ------ << definition related to pthread >> ------ */ 
 	int thr_id; //thread id
@@ -57,25 +64,25 @@ int main (void) {
 	thr_id = pthread_create(&p_thread[0], NULL, t_function, (void *)p1);
 	if (thr_id < 0) {
 		perror("thread create error : ");
-		exit(0);
+		exit(1);
 	}
 
 	thr_id = pthread_create(&p_thread[1], NULL, t_function, (void *)p2);
 	if (thr_id < 0) {
 		perror("thread create error : ");
-		exit(0);
+		exit(1);
 	}
 
 	thr_id = pthread_create(&p_thread[2], NULL, t_function, (void *)p3);
 	if (thr_id < 0) {
 		perror("thread create error : ");
-		exit(0);
+		exit(1);
 	}
 	
 	thr_id = pthread_create(&p_thread[3], NULL, t_function, (void *)p4);
 	if (thr_id < 0) {
 		perror("thread create error : ");
-		exit(0);
+		exit(1);
 	}
 	
 	t_function((void *)pM);
@@ -84,6 +91,21 @@ int main (void) {
 	pthread_join(p_thread[1], (void **)&status);
 	pthread_join(p_thread[2], (void **)&status);
 	pthread_join(p_thread[3], (void **)&status);
+
+	printf("Number of vehicles passed from each start point\n");
+	for (int i = 0; i < userInput; i++) {
+		if (startList[i] == 1) pointCnt[0]++;
+		else if (startList[i] == 2) pointCnt[1]++;
+		else if (startList[i] == 3) pointCnt[2]++;
+		else if (startList[i] == 4) pointCnt[3]++;
+	}
+
+	for (int i = 0; i < 4; i++) {
+		printf("P%d : %d times\n", i+1, pointCnt[i]);
+	}
+
+	printf("Total time : %d ticks\n", totalTime);
+	
 	
 	return 0;
 }
@@ -96,15 +118,26 @@ void *t_function(void *data) {
 	tid = pthread_self();
 
 	char *thread_name = (char*)data;
-
-	int i = 0;
-
-	while(i < 4) {
-		printf("[%s] pid: %u, tid: %x --- %d\n", thread_name, (unsigned int)pid, (unsigned int)tid, i);
-		i++;
-		sleep(1);
-	}
 	
+	pthread_mutex_lock(&mutex);
+	while(1) {
+		totalTime++;
 
+		printf("tick : %d\n", totalTime);
+		printf("===============================\n");
+		printf("Passed Vehicle\n");
+		printf("Car %d\n", passCar);
+		printf("Waiting Vehicle\n");
+		printf("Car ");
+		for (int i = 0; i < MAX_ARR_SIZE; i++) {
+			if (waitCar[i] == 0) break;
+			printf("%d ", waitCar[i]);
+		}
+		printf("\n===============================\n");
+		sleep(1);
+
+	}
+	pthread_mutex_unlock(&mutex);
+	
 }
 
