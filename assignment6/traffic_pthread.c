@@ -57,6 +57,11 @@ int main (void) {
 	scanf("%d", &userInput);
 	printf("\n");
 
+	if (userInput > 15) { //input exception
+		printf("your input value is not included in the given range.\n");
+		exit(1);
+	}
+
 	/* ====== << memory allocation part >> ====== */
 	startList = (int *)malloc(sizeof(int) * userInput); //memory allocation size by userInput
 	waitCar = (int *)malloc(sizeof(int) * userInput);
