@@ -31,7 +31,7 @@ int iterNum = 0; //iterator used to occupy pthread
 int arriveCnt = 0; //arrived car's count
 
 /* ====== << function declaration >> ====== */
-void status_print(); //status print each tick
+void status_print(int passCar, int* waitCar); //status print each tick
 void *thr1_function(void *data); //<p1> thread function
 void *thr2_function(void *data); //<p2> thread function
 void *thr3_function(void *data); //<p3> thread function
@@ -165,12 +165,12 @@ int main (void) {
 				movingIdx = 0;
 			}
 		}
-		status_print();
+		status_print(passCar, waitCar);
 
 		if (arriveCnt == userInput) { //all car arrived
 			passCar = 0; //no ever left passed Car
 			totalTime++;
-			status_print();
+			status_print(passCar, waitCar);
 			break;
 		}
 		pthread_mutex_unlock(&mutex); //change: pthread mutex lock -> unlock
@@ -194,7 +194,7 @@ int main (void) {
 
 
 /* ====== << status print each ticks >> ======= */
-void status_print() {
+void status_print(int passCar, int *waitCar) {
 	printf("tick : ");
 	printf("%d\n", totalTime);
 	printf("===============================\n");
